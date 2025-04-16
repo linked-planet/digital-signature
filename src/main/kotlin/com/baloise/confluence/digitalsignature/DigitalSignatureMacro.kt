@@ -16,12 +16,13 @@ import com.atlassian.confluence.security.PermissionManager
 import com.atlassian.confluence.setup.BootstrapManager
 import com.atlassian.confluence.setup.bandana.ConfluenceBandanaContext
 import com.atlassian.confluence.user.AuthenticatedUserThreadLocal
-import com.atlassian.plugin.spring.scanner.annotation.imports.ComponentImport
+import com.atlassian.plugins.osgi.javaconfig.OsgiServices.importOsgiService
 import com.atlassian.sal.api.message.I18nResolver
 import com.atlassian.sal.api.user.UserManager
 import com.atlassian.sal.api.user.UserProfile
 import com.atlassian.user.EntityException
 import com.atlassian.user.GroupManager
+import org.springframework.context.annotation.Bean
 import java.io.UnsupportedEncodingException
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -29,17 +30,24 @@ import java.security.InvalidParameterException
 import java.util.*
 import java.util.stream.Collectors
 
-class DigitalSignatureMacro constructor(
-    @param:ComponentImport private val bandanaManager: BandanaManager?,
-    @param:ComponentImport private val userManager: UserManager?,
-    @param:ComponentImport private val bootstrapManager: BootstrapManager?,
-    @param:ComponentImport private val pageManager: PageManager?,
-    @param:ComponentImport private val permissionManager: PermissionManager?,
-    @param:ComponentImport private val groupManager: GroupManager?,
-    @param:ComponentImport private val i18nResolver: I18nResolver?,
-    @param:ComponentImport private val velocityHelperService: VelocityHelperService?
-) : Macro {
-    @Transient
+class DigitalSignatureMacro(): Macro {
+    private val bandanaManager: BandanaManager
+        @Bean get() = importOsgiService(BandanaManager::class.java)
+    private val userManager: UserManager?
+        @Bean get() = importOsgiService(UserManager::class.java)
+    private val bootstrapManager: BootstrapManager?
+        @Bean get() = importOsgiService(BootstrapManager::class.java)
+    private val pageManager: PageManager?
+        @Bean get() = importOsgiService(PageManager::class.java)
+    private val permissionManager: PermissionManager?
+        @Bean get() = importOsgiService(PermissionManager::class.java)
+    private val groupManager: GroupManager?
+        @Bean get() = importOsgiService(GroupManager::class.java)
+    private val i18nResolver: I18nResolver?
+        @Bean get() = importOsgiService(I18nResolver::class.java)
+    private val velocityHelperService: VelocityHelperService?
+        @Bean get() = importOsgiService(VelocityHelperService::class.java)
+
     private val markdown = Markdown()
     private val all: MutableSet<String> = HashSet()
     private val contextHelper = ContextHelper()
@@ -58,7 +66,7 @@ class DigitalSignatureMacro constructor(
         val signers = if (petitionMode) all else contextHelper.union<String>(
             getSet(params, "signers"), loadUserGroups(userGroups), loadInheritedSigners(
                 InheritSigners.Companion.ofValue(
-                    params["inheritSigners"]!!
+                    params["inheritSigners"] ?: ""
                 ), conversionContext
             )
         )
@@ -83,13 +91,8 @@ class DigitalSignatureMacro constructor(
                 )
             }
         }
-
-        return velocityHelperService!!.getRenderedTemplate(
-            "templates/macro.vm", buildContext(
-                params, conversionContext,
-                entity, signature, protectedContent
-            )
-        )
+        val velocityContext = buildContext(params, conversionContext, entity, signature, protectedContent)
+        return velocityHelperService!!.getRenderedTemplateWithoutSwallowingErrors("templates/macro.vm", velocityContext)
     }
 
     private fun buildContext(
@@ -113,23 +116,20 @@ class DigitalSignatureMacro constructor(
 
         if (signature.isSignatureMissing(currentUserName)) {
             context["signAs"] = contextHelper.getProfileNotNull(userManager!!, currentUserName).fullName
-            context["signAction"] =
-                bootstrapManager!!.webAppContextPath + REST_PATH + "/sign"
+            context["signAction"] = bootstrapManager!!.webAppContextPath + REST_PATH + "/sign"
         }
         context["panel"] = getBoolean(params, "panel", true)
         context["protectedContent"] = protectedContentAccess
         if (protectedContentAccess && isPage(conversionContext)) {
-            context["protectedContentURL"] =
-                bootstrapManager!!.webAppContextPath + DISPLAY_PATH + "/" + (page as Page).spaceKey + "/" + signature.protectedKey
+            context["protectedContentURL"] = bootstrapManager!!.webAppContextPath + DISPLAY_PATH + "/" + (page as Page).spaceKey + "/" + signature.protectedKey
         }
 
         val canExport = hideSignatures(params, signature, currentUserName)
         val signed = contextHelper.getProfiles(userManager!!, signature.signatures.keys)
-        val missing = contextHelper.getProfiles(userManager, signature.missingSignatures)
+        val missing = contextHelper.getProfiles(userManager!!, signature.missingSignatures)
 
         context["orderedSignatures"] = contextHelper.getOrderedSignatures(signature)
-        context["orderedMissingSignatureProfiles"] =
-            contextHelper.getOrderedProfiles(userManager, signature.missingSignatures)
+        context["orderedMissingSignatureProfiles"] = contextHelper.getOrderedProfiles(userManager!!, signature.missingSignatures)
         context["profiles"] = contextHelper.union(signed, missing)
         context["signature"] = signature
         context["visibilityLimit"] = signature.visibilityLimit
@@ -180,15 +180,15 @@ class DigitalSignatureMacro constructor(
     }
 
     private fun hideSignatures(params: Map<String, String>, signature: Signature2, currentUserName: String): Boolean {
-        val pendingVisible = isVisible(signature, currentUserName, params["pendingVisible"])
-        val signaturesVisible = isVisible(signature, currentUserName, params["signaturesVisible"])
+        val pendingVisible = isVisible(signature, currentUserName, params["pendingVisible"] ?: "")
+        val signaturesVisible = isVisible(signature, currentUserName, params["signaturesVisible"] ?: "")
         if (!pendingVisible) signature.missingSignatures = TreeSet()
         if (!signaturesVisible) signature.signatures = HashMap()
         return pendingVisible && signaturesVisible
     }
 
-    private fun isVisible(signature: Signature2, currentUserName: String, signaturesVisibleParam: String?): Boolean {
-        return when (SignaturesVisible.Companion.ofValue(signaturesVisibleParam!!)) {
+    private fun isVisible(signature: Signature2, currentUserName: String, signaturesVisibleParam: String): Boolean {
+        return when (SignaturesVisible.Companion.ofValue(signaturesVisibleParam)) {
             SignaturesVisible.IF_SIGNATORY -> signature.hasSigned(currentUserName) || signature.isSignatory(
                 currentUserName
             )
@@ -270,7 +270,7 @@ class DigitalSignatureMacro constructor(
             if (groupName == null) return ret
             val group = groupManager!!.getGroup(groupName.trim { it <= ' ' })
             if (group == null) return ret
-            val pager = groupManager.getMemberNames(group)
+            val pager = groupManager!!.getMemberNames(group)
             while (!pager.onLastPage()) {
                 ret.addAll(pager.currentPage)
                 pager.nextPage()

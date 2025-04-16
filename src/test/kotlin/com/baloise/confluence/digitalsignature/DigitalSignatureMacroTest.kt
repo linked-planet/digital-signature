@@ -13,7 +13,6 @@ import com.atlassian.sal.api.user.UserKey
 import com.atlassian.sal.api.user.UserProfile
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito
 import java.io.File
 import java.net.URI
 import java.sql.Connection

@@ -5,7 +5,7 @@
 #set($macroId = $signature.getKey().replace("signature.", ""))
 #if($panel)
 <div class="panel">
-  <div class="panelHeader"><b>$title &nbsp;</b>
+  <div class="panelHeader"><b>$title</b>
     <div class="aui-buttons">
         #if($protectedContent)
           <a class="aui-icon aui-icon-small aui-iconfont-attachment" href="$protectedContentURL"

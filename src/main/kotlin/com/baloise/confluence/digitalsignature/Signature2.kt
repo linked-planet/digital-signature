@@ -10,7 +10,7 @@ import java.io.Serializable
 import java.util.*
 import kotlin.collections.HashMap
 
-class Signature2(var pageId: Long, private val body: String, var title: String) : Serializable {
+class Signature2(var pageId: Long, var body: String, var title: String) : Serializable {
     var hash = DigestUtils.sha256Hex("$pageId:$title:$body")
     var key = "signature.$hash"
     val protectedKey: String = "protected.$hash"
@@ -127,7 +127,7 @@ class Signature2(var pageId: Long, private val body: String, var title: String) 
                     }
                 }
                 else -> {
-                    require(false) { "Received strange value from Bandana" }
+                    log.warn("Received strange value from Bandana")
                     return Pair(null,false)
                 }
             }

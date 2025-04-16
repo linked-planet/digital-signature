@@ -15,7 +15,7 @@
     <!-- add our web resources -->
     <web-resource key="digital-signature-resources" name="digital-signature Web Resources">
         <dependency>com.atlassian.auiplugin:ajs</dependency>
-
+        <description>Web Resources required for signature display</description>
         <resource type="download" name="digital-signature.css"
                   location="/css/digital-signature.css"/>
         <resource type="download" name="digital-signature.js"
@@ -30,6 +30,7 @@
                  icon="/download/resources/${project.groupId}.${project.artifactId}/images/macro-icon.png"
                  documentation-url="https://github.com/baloise/digital-signature/wiki/Signature-Macro-Usage"
     >
+        <description>The actual macro</description>
         <category name="confluence-content"/>
         <parameters>
             <parameter name="title" multiple="false" type="string" required="false"/>
@@ -59,13 +60,19 @@
         </parameters>
     </xhtml-macro>
 
+    <velocity-allowlist key="velocity-allowlist-signature2">
+        <method>com.baloise.confluence.digitalsignature.Signature2#getKey()</method>
+        <method>com.baloise.confluence.digitalsignature.Signature2#getTitle()</method>
+        <method>com.baloise.confluence.digitalsignature.Signature2#getBody()</method>
+        <method>com.baloise.confluence.digitalsignature.Markdown#toHTML(java.lang.String)</method>
+    </velocity-allowlist>
+
     <xstream-security key="xstream-set" name="Signature Class Allowance for Xstream Deserializer">
         <type>com.baloise.confluence.digitalsignature.Signature</type>
     </xstream-security>
-    
-    <rest key="com.baloise.confluence:digital-signature" path="/signature" version="1.0">    
+
+    <rest key="com.baloise.confluence:digital-signature" path="/signature" version="1.0">
         <description>Provides signature services.</description>
-        <package>com.baloise.confluence.digitalsignature.rest</package>
     </rest>
 
 </atlassian-plugin>

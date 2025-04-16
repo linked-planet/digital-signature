@@ -14,7 +14,7 @@ import com.atlassian.mail.MailException
 import com.atlassian.mail.server.MailServerManager
 import com.atlassian.mywork.model.NotificationBuilder
 import com.atlassian.mywork.service.LocalNotificationService
-import com.atlassian.plugin.spring.scanner.annotation.imports.ComponentImport
+import com.atlassian.plugins.osgi.javaconfig.OsgiServices.importOsgiService
 import com.atlassian.sal.api.message.I18nResolver
 import com.atlassian.sal.api.user.UserManager
 import com.atlassian.sal.api.user.UserProfile
@@ -24,6 +24,7 @@ import com.baloise.confluence.digitalsignature.Markdown
 import com.baloise.confluence.digitalsignature.Signature2
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.context.annotation.Bean
 import java.net.URI
 import java.text.MessageFormat
 import java.util.*
@@ -38,16 +39,26 @@ import javax.ws.rs.core.UriInfo
 @Path("/")
 @Consumes(MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON)
-class DigitalSignatureService(
-    @param:ComponentImport private val bandanaManager: BandanaManager,
-    @param:ComponentImport private val settingsManager: GlobalSettingsManager,
-    @param:ComponentImport private val userManager: UserManager,
-    @param:ComponentImport private val notificationService: LocalNotificationService,
-    @param:ComponentImport private val mailServerManager: MailServerManager,
-    @param:ComponentImport private val pageManager: PageManager,
-    @param:ComponentImport private val i18nResolver: I18nResolver,
-    @param:ComponentImport private val velocityHelperService: VelocityHelperService
-) {
+
+class DigitalSignatureService() {
+    private val bandanaManager: BandanaManager
+        @Bean get() = importOsgiService(BandanaManager::class.java)
+    private val settingsManager: GlobalSettingsManager
+        @Bean get() = importOsgiService(GlobalSettingsManager::class.java)
+    private val userManager: UserManager
+        @Bean get() = importOsgiService(UserManager::class.java)
+    private val notificationService: LocalNotificationService
+        @Bean get() = importOsgiService(LocalNotificationService::class.java)
+    private val mailServerManager: MailServerManager
+        @Bean get() = importOsgiService(MailServerManager::class.java)
+    private val pageManager: PageManager
+        @Bean get() = importOsgiService(PageManager::class.java)
+    private val i18nResolver: I18nResolver
+        @Bean get() = importOsgiService(I18nResolver::class.java)
+    private val velocityHelperService: VelocityHelperService
+        @Bean get() = importOsgiService(VelocityHelperService::class.java)
+
+
     private val contextHelper = ContextHelper()
 
     @Transient
