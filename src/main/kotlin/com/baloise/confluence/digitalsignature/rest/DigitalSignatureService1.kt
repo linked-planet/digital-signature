@@ -1,6 +1,21 @@
 package com.baloise.confluence.digitalsignature.rest
 
 import com.atlassian.bandana.BandanaManager
+import com.atlassian.confluence.api.model.Expansion
+import com.atlassian.confluence.api.model.Expansions
+import com.atlassian.confluence.api.model.content.Content
+import com.atlassian.confluence.api.model.content.Space
+import com.atlassian.confluence.api.model.content.id.ContentId
+import com.atlassian.confluence.api.model.pagination.PageResponse
+import com.atlassian.confluence.api.model.pagination.PageResponseImpl
+import com.atlassian.confluence.api.model.people.Subject
+import com.atlassian.confluence.api.model.people.SubjectType
+import com.atlassian.confluence.api.model.people.User
+import com.atlassian.confluence.api.model.permissions.ContentRestriction
+import com.atlassian.confluence.api.model.permissions.OperationKey
+import com.atlassian.confluence.api.model.reference.Reference
+import com.atlassian.confluence.api.service.content.ContentService
+import com.atlassian.confluence.api.service.permissions.ContentRestrictionService
 import com.atlassian.confluence.pages.PageManager
 import com.atlassian.confluence.plugin.services.VelocityHelperService
 import com.atlassian.confluence.renderer.radeox.macros.MacroUtils
@@ -57,7 +72,10 @@ class DigitalSignatureService() {
         @Bean get() = importOsgiService(I18nResolver::class.java)
     private val velocityHelperService: VelocityHelperService
         @Bean get() = importOsgiService(VelocityHelperService::class.java)
-
+    private val contentService: ContentService
+        @Bean get() = importOsgiService(ContentService::class.java)
+    private val contentRestrictionService: ContentRestrictionService
+        @Bean get() = importOsgiService(ContentRestrictionService::class.java)
 
     private val contextHelper = ContextHelper()
 
@@ -101,17 +119,20 @@ class DigitalSignatureService() {
         for (notifiedUser in signature.notify) {
             notify(notifiedUser, confluenceUser, signature, baseUrl)
         }
-        val parentPage = pageManager.getPage(signature.pageId)
-        val protectedPage = pageManager.getPage(parentPage!!.spaceKey, signature.protectedKey)
-        if (protectedPage != null) {
-            protectedPage.addPermission(
-                ContentPermission.createUserPermission(
-                    ContentPermission.VIEW_PERMISSION,
-                    confluenceUser
-                )
-            )
-            pageManager.saveContentEntity(protectedPage, null)
-        }
+        contentService.find(Expansion("space")).withId(ContentId.of(signature.pageId)).fetchOrNull()
+            ?.let { parentPage ->
+                contentService.find().withSpace(parentPage.space).withTitle(signature.protectedKey).withContainer(parentPage).fetchOrNull()
+            }
+            ?.let { protectedPage ->
+                val restrictions: MutableMap<SubjectType, PageResponse<Subject>> = mutableMapOf()
+                val subject = User.fromUserkey(confluenceUser.key)
+                val pageResponse = PageResponseImpl.builder<Subject>().add(subject).build()
+                restrictions[SubjectType.USER] = pageResponse
+
+                val restriction = ContentRestriction.builder().operation(OperationKey.READ).restrictions(restrictions).build()
+
+                contentRestrictionService.updateRestrictions(protectedPage.id, listOf(restriction), Expansion("read.restrictions.user"))
+            }
 
         val pageUri =
             URI.create(settingsManager.globalSettings.baseUrl + "/pages/viewpage.action?pageId=" + signature.pageId)

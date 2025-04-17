@@ -1,8 +1,14 @@
 package com.baloise.confluence.digitalsignature
 
 import com.atlassian.bandana.BandanaManager
+import com.atlassian.confluence.api.model.Expansion
+import com.atlassian.confluence.api.model.content.ContentType
+import com.atlassian.confluence.api.model.content.Space
+import com.atlassian.confluence.api.model.content.id.ContentId
+import com.atlassian.confluence.api.service.content.ContentService
 import com.atlassian.confluence.content.render.xhtml.ConversionContext
 import com.atlassian.confluence.core.ContentEntityObject
+import com.atlassian.confluence.core.ContextPathHolder
 import com.atlassian.confluence.core.DefaultSaveContext
 import com.atlassian.confluence.macro.Macro
 import com.atlassian.confluence.macro.Macro.OutputType
@@ -13,9 +19,9 @@ import com.atlassian.confluence.renderer.radeox.macros.MacroUtils
 import com.atlassian.confluence.security.ContentPermission
 import com.atlassian.confluence.security.Permission
 import com.atlassian.confluence.security.PermissionManager
-import com.atlassian.confluence.setup.BootstrapManager
 import com.atlassian.confluence.setup.bandana.ConfluenceBandanaContext
 import com.atlassian.confluence.user.AuthenticatedUserThreadLocal
+import com.atlassian.confluence.user.UserAccessor
 import com.atlassian.plugins.osgi.javaconfig.OsgiServices.importOsgiService
 import com.atlassian.sal.api.message.I18nResolver
 import com.atlassian.sal.api.user.UserManager
@@ -26,27 +32,30 @@ import org.springframework.context.annotation.Bean
 import java.io.UnsupportedEncodingException
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import java.security.InvalidParameterException
 import java.util.*
 import java.util.stream.Collectors
 
 class DigitalSignatureMacro(): Macro {
     private val bandanaManager: BandanaManager
         @Bean get() = importOsgiService(BandanaManager::class.java)
-    private val userManager: UserManager?
+    private val userManager: UserManager
         @Bean get() = importOsgiService(UserManager::class.java)
-    private val bootstrapManager: BootstrapManager?
-        @Bean get() = importOsgiService(BootstrapManager::class.java)
-    private val pageManager: PageManager?
+    private val contextPathHolder: ContextPathHolder
+        @Bean get() = importOsgiService(ContextPathHolder::class.java)
+    private val pageManager: PageManager
         @Bean get() = importOsgiService(PageManager::class.java)
-    private val permissionManager: PermissionManager?
+    private val permissionManager: PermissionManager
         @Bean get() = importOsgiService(PermissionManager::class.java)
-    private val groupManager: GroupManager?
+    private val groupManager: GroupManager
         @Bean get() = importOsgiService(GroupManager::class.java)
-    private val i18nResolver: I18nResolver?
+    private val i18nResolver: I18nResolver
         @Bean get() = importOsgiService(I18nResolver::class.java)
-    private val velocityHelperService: VelocityHelperService?
+    private val velocityHelperService: VelocityHelperService
         @Bean get() = importOsgiService(VelocityHelperService::class.java)
+    private val contentService: ContentService
+        @Bean get() = importOsgiService(ContentService::class.java)
+    private val userAccessor: UserAccessor
+        @Bean get() = importOsgiService(UserAccessor::class.java)
 
     private val markdown = Markdown()
     private val all: MutableSet<String> = HashSet()
@@ -58,7 +67,7 @@ class DigitalSignatureMacro(): Macro {
 
     override fun execute(params: Map<String, String>, body: String?, conversionContext: ConversionContext): String {
         if (body == null || body.length <= 10) {
-            return warning(i18nResolver!!.getText("com.baloise.confluence.digital-signature.signature.macro.warning.bodyToShort"))
+            return warning(i18nResolver.getText("com.baloise.confluence.digital-signature.signature.macro.warning.bodyToShort"))
         }
 
         val userGroups = getSet(params, "signerGroups")
@@ -73,8 +82,8 @@ class DigitalSignatureMacro(): Macro {
         val entity = conversionContext.entity
         val signature = sync(
             Signature2(entity!!.latestVersionId, body, params["title"]?:"").withNotified(getSet(params, "notified"))
-                .withMaxSignatures(getLong(params, "maxSignatures", -1))
-                .withVisibilityLimit(getLong(params, "visibilityLimit", -1)), signers
+                .withMaxSignatures(getLong(params, "maxSignatures"))
+                .withVisibilityLimit(getLong(params, "visibilityLimit")), signers
         )
 
         val protectedContent = getBoolean(params, "protectedContent", false)
@@ -83,7 +92,7 @@ class DigitalSignatureMacro(): Macro {
                 ensureProtectedPage(conversionContext, entity as Page, signature)
             } catch (e: Exception) {
                 return warning(
-                    i18nResolver!!.getText(
+                    i18nResolver.getText(
                         "com.baloise.confluence.digital-signature.signature.macro.warning.editPermissionRequiredForProtectedContent",
                         "<a class=\"system-metadata-restrictions\">",
                         "</a>"
@@ -92,7 +101,7 @@ class DigitalSignatureMacro(): Macro {
             }
         }
         val velocityContext = buildContext(params, conversionContext, entity, signature, protectedContent)
-        return velocityHelperService!!.getRenderedTemplateWithoutSwallowingErrors("templates/macro.vm", velocityContext)
+        return velocityHelperService.getRenderedTemplateWithoutSwallowingErrors("templates/macro.vm", velocityContext)
     }
 
     private fun buildContext(
@@ -104,7 +113,7 @@ class DigitalSignatureMacro(): Macro {
     ): Map<String?, Any?> {
         val currentUser = AuthenticatedUserThreadLocal.get()
         val currentUserName = currentUser.name
-        val protectedContentAccess = protectedContent && (permissionManager!!.hasPermission(
+        val protectedContentAccess = protectedContent && (permissionManager.hasPermission(
             currentUser,
             Permission.EDIT,
             page
@@ -115,21 +124,21 @@ class DigitalSignatureMacro(): Macro {
         context["markdown"] = markdown
 
         if (signature.isSignatureMissing(currentUserName)) {
-            context["signAs"] = contextHelper.getProfileNotNull(userManager!!, currentUserName).fullName
-            context["signAction"] = bootstrapManager!!.webAppContextPath + REST_PATH + "/sign"
+            context["signAs"] = contextHelper.getProfileNotNull(userManager, currentUserName).fullName
+            context["signAction"] = contextPathHolder.contextPath + REST_PATH + "/sign"
         }
         context["panel"] = getBoolean(params, "panel", true)
         context["protectedContent"] = protectedContentAccess
         if (protectedContentAccess && isPage(conversionContext)) {
-            context["protectedContentURL"] = bootstrapManager!!.webAppContextPath + DISPLAY_PATH + "/" + (page as Page).spaceKey + "/" + signature.protectedKey
+            context["protectedContentURL"] = contextPathHolder.contextPath + DISPLAY_PATH + "/" + (page as Page).spaceKey + "/" + signature.protectedKey
         }
 
         val canExport = hideSignatures(params, signature, currentUserName)
-        val signed = contextHelper.getProfiles(userManager!!, signature.signatures.keys)
-        val missing = contextHelper.getProfiles(userManager!!, signature.missingSignatures)
+        val signed = contextHelper.getProfiles(userManager, signature.signatures.keys)
+        val missing = contextHelper.getProfiles(userManager, signature.missingSignatures)
 
         context["orderedSignatures"] = contextHelper.getOrderedSignatures(signature)
-        context["orderedMissingSignatureProfiles"] = contextHelper.getOrderedProfiles(userManager!!, signature.missingSignatures)
+        context["orderedMissingSignatureProfiles"] = contextHelper.getOrderedProfiles(userManager, signature.missingSignatures)
         context["profiles"] = contextHelper.union(signed, missing)
         context["signature"] = signature
         context["visibilityLimit"] = signature.visibilityLimit
@@ -137,20 +146,25 @@ class DigitalSignatureMacro(): Macro {
         context["mailtoMissing"] = getMailto(missing.values, signature.title, false, signature)
         context["UUID"] = UUID.randomUUID().toString().replace("-", "")
         context["downloadURL"] =
-            if (canExport) bootstrapManager?.webAppContextPath + REST_PATH + "/export?key=" + signature.key else null
+            if (canExport) contextPathHolder.contextPath + REST_PATH + "/export?key=" + signature.key else null
         return context
     }
 
     private fun ensureProtectedPage(conversionContext: ConversionContext, page: Page, signature: Signature2) {
-        var protectedPage = pageManager!!.getPage(conversionContext.spaceKey, signature.protectedKey)
-        if (protectedPage == null) {
+        val parentPage = contentService.find(Expansion("space")).withId(ContentId.of(page.id)).fetchOrNull()
+        val protectedPageExists = contentService.find(Expansion("id"))
+            .withTitle(signature.protectedKey)
+            .withSpace(parentPage.space)
+            .withType(ContentType.PAGE)
+            .fetchOrNull()?.let { true } ?: false
+        if (!protectedPageExists) {
             val editors = page.getContentPermissionSet(ContentPermission.EDIT_PERMISSION)
-            check(!(editors == null || editors.size() == 0)) { "No editors found!" }
-            protectedPage = Page()
-            protectedPage.setSpace(page.space)
+            check(!editors.isEmpty) { "No editors found!" }
+            val protectedPage = Page()
+            protectedPage.space = page.space
             protectedPage.setParentPage(page)
-            protectedPage.setVersion(1)
-            protectedPage.setCreator(page.creator)
+            protectedPage.version = 1
+            protectedPage.creator = page.creator
             for (editor in editors) {
                 protectedPage.addPermission(
                     ContentPermission.createUserPermission(
@@ -169,12 +183,12 @@ class DigitalSignatureMacro(): Macro {
                 protectedPage.addPermission(
                     ContentPermission.createUserPermission(
                         ContentPermission.VIEW_PERMISSION,
-                        signedUserName
+                        userAccessor.getUserByName(signedUserName)
                     )
                 )
             }
             protectedPage.title = signature.protectedKey
-            pageManager?.saveContentEntity(protectedPage, DefaultSaveContext.DEFAULT)
+            pageManager.saveContentEntity(protectedPage, DefaultSaveContext.DEFAULT)
             page.addChild(protectedPage)
         }
     }
@@ -188,19 +202,13 @@ class DigitalSignatureMacro(): Macro {
     }
 
     private fun isVisible(signature: Signature2, currentUserName: String, signaturesVisibleParam: String): Boolean {
-        return when (SignaturesVisible.Companion.ofValue(signaturesVisibleParam)) {
+        return when (SignaturesVisible.ofValue(signaturesVisibleParam)) {
             SignaturesVisible.IF_SIGNATORY -> signature.hasSigned(currentUserName) || signature.isSignatory(
                 currentUserName
             )
 
             SignaturesVisible.IF_SIGNED -> signature.hasSigned(currentUserName)
             SignaturesVisible.ALWAYS -> true
-            else -> throw InvalidParameterException(
-                String.format(
-                    "'%s' is an unknown value of SignaturesVisible!",
-                    signaturesVisibleParam
-                )
-            )
         }
     }
 
@@ -211,7 +219,7 @@ class DigitalSignatureMacro(): Macro {
     private fun warning(message: String): String {
         return """<div class="aui-message aui-message-warning">
     <p class="title">
-        <strong>${i18nResolver?.getText("com.baloise.confluence.digital-signature.signature.label")}</strong>
+        <strong>${i18nResolver.getText("com.baloise.confluence.digital-signature.signature.label")}</strong>
     </p>
     <p>$message</p>
 </div>"""
@@ -235,7 +243,6 @@ class DigitalSignatureMacro(): Macro {
 
             InheritSigners.WRITERS_ONLY -> users.addAll(loadUsers(conversionContext, ContentPermission.EDIT_PERMISSION))
             InheritSigners.NONE -> {}
-            else -> throw IllegalArgumentException("$inheritSigners is unknown or not yet implemented!")
         }
         return users
     }
@@ -268,9 +275,9 @@ class DigitalSignatureMacro(): Macro {
         val ret: MutableSet<String> = HashSet()
         try {
             if (groupName == null) return ret
-            val group = groupManager!!.getGroup(groupName.trim { it <= ' ' })
+            val group = groupManager.getGroup(groupName.trim { it <= ' ' })
             if (group == null) return ret
-            val pager = groupManager!!.getMemberNames(group)
+            val pager = groupManager.getMemberNames(group)
             while (!pager.onLastPage()) {
                 ret.addAll(pager.currentPage)
                 pager.nextPage()
@@ -287,7 +294,7 @@ class DigitalSignatureMacro(): Macro {
         return value?.toBoolean() ?: fallback
     }
 
-    private fun getLong(params: Map<String, String>, key: String, fallback: Long): Long {
+    private fun getLong(params: Map<String, String>, key: String, fallback: Long = -1L): Long {
         val value = params[key]
         return value?.toLong() ?: fallback
     }
@@ -295,14 +302,14 @@ class DigitalSignatureMacro(): Macro {
     private fun getSet(params: Map<String, String>, key: String): Set<String> {
         val value = params[key]
         return if (value == null || value.trim { it <= ' ' }.isEmpty()) TreeSet() else TreeSet(
-            Arrays.asList(
+            listOf(
                 *value.split("[;, ]+".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
             )
         )
     }
 
     private fun sync(signature: Signature2, signers: Set<String>): Signature2 {
-        val value: Any? = bandanaManager!!.getValue(ConfluenceBandanaContext.GLOBAL_CONTEXT, signature.key)
+        val value: Any? = bandanaManager.getValue(ConfluenceBandanaContext.GLOBAL_CONTEXT, signature.key)
         val (sig, requiresUpdate) = Signature2.fromBandana(value)
         if (requiresUpdate) {
             Signature2.toBandana(bandanaManager, signature.key, sig!!)
@@ -351,9 +358,10 @@ class DigitalSignatureMacro(): Macro {
         profiles: Collection<UserProfile>?,
         subject: String,
         signed: Boolean,
-        signature: Signature2?
+        signature: Signature2?,
+        contextPathFixed: String? = null // for testing only as we're missing the osgi wiring
     ): String? {
-        if (profiles == null || profiles.isEmpty()) return null
+        if (profiles.isNullOrEmpty()) return null
         val profilesWithMail: List<UserProfile> =
             profiles.stream().filter { profile: UserProfile -> contextHelper.hasEmail(profile) }.collect(
                 Collectors.toList()
@@ -374,7 +382,8 @@ class DigitalSignatureMacro(): Macro {
             ret.append("?Subject=").append(urlEncode(subject))
         }
         if (ret.length > MAX_MAILTO_CHARACTER_COUNT) {
-            return bootstrapManager?.webAppContextPath + REST_PATH + "/emails?key=" + signature?.key + "&signed=" + signed
+            val ctxPath = contextPathFixed ?: contextPathHolder.contextPath
+            return ctxPath + REST_PATH + "/emails?key=" + signature?.key + "&signed=" + signed
         }
         return ret.toString()
     }
