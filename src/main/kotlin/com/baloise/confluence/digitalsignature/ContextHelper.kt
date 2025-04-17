@@ -4,7 +4,6 @@ import com.atlassian.sal.api.user.UserManager
 import com.atlassian.sal.api.user.UserProfile
 import com.baloise.confluence.digitalsignature.sal.DummyProfile
 import java.util.*
-import java.util.function.Function
 
 class ContextHelper {
     fun getOrderedSignatures(signature: Signature2): Any {

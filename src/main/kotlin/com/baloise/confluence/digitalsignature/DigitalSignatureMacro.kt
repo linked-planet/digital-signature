@@ -3,7 +3,6 @@ package com.baloise.confluence.digitalsignature
 import com.atlassian.bandana.BandanaManager
 import com.atlassian.confluence.api.model.Expansion
 import com.atlassian.confluence.api.model.content.ContentType
-import com.atlassian.confluence.api.model.content.Space
 import com.atlassian.confluence.api.model.content.id.ContentId
 import com.atlassian.confluence.api.service.content.ContentService
 import com.atlassian.confluence.content.render.xhtml.ConversionContext
@@ -35,7 +34,7 @@ import java.nio.charset.StandardCharsets
 import java.util.*
 import java.util.stream.Collectors
 
-class DigitalSignatureMacro(): Macro {
+class DigitalSignatureMacro() : Macro {
     private val bandanaManager: BandanaManager
         @Bean get() = importOsgiService(BandanaManager::class.java)
     private val userManager: UserManager
@@ -76,7 +75,7 @@ class DigitalSignatureMacro(): Macro {
         )
         val entity = conversionContext.entity
         val signature = sync(
-            Signature2(entity!!.latestVersionId, body, params["title"]?:"").withNotified(getSet(params, "notified"))
+            Signature2(entity!!.latestVersionId, body, params["title"] ?: "").withNotified(getSet(params, "notified"))
                 .withMaxSignatures(getLong(params, "maxSignatures"))
                 .withVisibilityLimit(getLong(params, "visibilityLimit")), signers
         )
@@ -125,7 +124,8 @@ class DigitalSignatureMacro(): Macro {
         context["panel"] = getBoolean(params, "panel", true)
         context["protectedContent"] = protectedContentAccess
         if (protectedContentAccess && isPage(conversionContext)) {
-            context["protectedContentURL"] = contextPathHolder.contextPath + DISPLAY_PATH + "/" + (page as Page).spaceKey + "/" + signature.protectedKey
+            context["protectedContentURL"] =
+                contextPathHolder.contextPath + DISPLAY_PATH + "/" + (page as Page).spaceKey + "/" + signature.protectedKey
         }
 
         val canExport = hideSignatures(params, signature, currentUserName)
@@ -133,7 +133,8 @@ class DigitalSignatureMacro(): Macro {
         val missing = contextHelper.getProfiles(userManager, signature.missingSignatures)
 
         context["orderedSignatures"] = contextHelper.getOrderedSignatures(signature)
-        context["orderedMissingSignatureProfiles"] = contextHelper.getOrderedProfiles(userManager, signature.missingSignatures)
+        context["orderedMissingSignatureProfiles"] =
+            contextHelper.getOrderedProfiles(userManager, signature.missingSignatures)
         context["profiles"] = contextHelper.union(signed, missing)
         context["signature"] = signature
         context["visibilityLimit"] = signature.visibilityLimit
@@ -154,39 +155,39 @@ class DigitalSignatureMacro(): Macro {
             .fetchOrNull()
             ?: {
 
-            val editors = page.getContentPermissionSet(ContentPermission.EDIT_PERMISSION)
-            check(!editors.isEmpty) { "No editors found!" }
-            val protectedPage = Page()
-            protectedPage.space = page.space
-            protectedPage.setParentPage(page)
-            protectedPage.version = 1
-            protectedPage.creator = page.creator
-            for (editor in editors) {
-                protectedPage.addPermission(
-                    ContentPermission.createUserPermission(
-                        ContentPermission.EDIT_PERMISSION,
-                        editor.userSubject
+                val editors = page.getContentPermissionSet(ContentPermission.EDIT_PERMISSION)
+                check(!editors.isEmpty) { "No editors found!" }
+                val protectedPage = Page()
+                protectedPage.space = page.space
+                protectedPage.setParentPage(page)
+                protectedPage.version = 1
+                protectedPage.creator = page.creator
+                for (editor in editors) {
+                    protectedPage.addPermission(
+                        ContentPermission.createUserPermission(
+                            ContentPermission.EDIT_PERMISSION,
+                            editor.userSubject
+                        )
                     )
-                )
-                protectedPage.addPermission(
-                    ContentPermission.createUserPermission(
-                        ContentPermission.VIEW_PERMISSION,
-                        editor.userSubject
+                    protectedPage.addPermission(
+                        ContentPermission.createUserPermission(
+                            ContentPermission.VIEW_PERMISSION,
+                            editor.userSubject
+                        )
                     )
-                )
+                }
+                for (signedUserName in signature.signatures.keys) {
+                    protectedPage.addPermission(
+                        ContentPermission.createUserPermission(
+                            ContentPermission.VIEW_PERMISSION,
+                            userAccessor.getUserByName(signedUserName)
+                        )
+                    )
+                }
+                protectedPage.title = signature.protectedKey
+                pageManager.saveContentEntity(protectedPage, DefaultSaveContext.DEFAULT)
+                page.addChild(protectedPage)
             }
-            for (signedUserName in signature.signatures.keys) {
-                protectedPage.addPermission(
-                    ContentPermission.createUserPermission(
-                        ContentPermission.VIEW_PERMISSION,
-                        userAccessor.getUserByName(signedUserName)
-                    )
-                )
-            }
-            protectedPage.title = signature.protectedKey
-            pageManager.saveContentEntity(protectedPage, DefaultSaveContext.DEFAULT)
-            page.addChild(protectedPage)
-        }
     }
 
     private fun hideSignatures(params: Map<String, String>, signature: Signature2, currentUserName: String): Boolean {
@@ -339,7 +340,7 @@ class DigitalSignatureMacro(): Macro {
             if (save) {
                 loaded.save(bandanaManager)
             }
-        }  ?: signature.apply { missingSignatures = signers }.save(bandanaManager)
+        } ?: signature.apply { missingSignatures = signers }.save(bandanaManager)
         return signature
     }
 

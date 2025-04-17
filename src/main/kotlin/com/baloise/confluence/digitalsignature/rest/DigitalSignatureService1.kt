@@ -115,7 +115,8 @@ class DigitalSignatureService() {
         }
         contentService.find(Expansion("space")).withId(ContentId.of(signature.pageId)).fetchOrNull()
             ?.let { parentPage ->
-                contentService.find().withSpace(parentPage.space).withTitle(signature.protectedKey).withContainer(parentPage).fetchOrNull()
+                contentService.find().withSpace(parentPage.space).withTitle(signature.protectedKey)
+                    .withContainer(parentPage).fetchOrNull()
             }
             ?.let { protectedPage ->
                 val restrictions: MutableMap<SubjectType, PageResponse<Subject>> = mutableMapOf()
@@ -123,9 +124,14 @@ class DigitalSignatureService() {
                 val pageResponse = PageResponseImpl.builder<Subject>().add(subject).build()
                 restrictions[SubjectType.USER] = pageResponse
 
-                val restriction = ContentRestriction.builder().operation(OperationKey.READ).restrictions(restrictions).build()
+                val restriction =
+                    ContentRestriction.builder().operation(OperationKey.READ).restrictions(restrictions).build()
 
-                contentRestrictionService.updateRestrictions(protectedPage.id, listOf(restriction), Expansion("read.restrictions.user"))
+                contentRestrictionService.updateRestrictions(
+                    protectedPage.id,
+                    listOf(restriction),
+                    Expansion("read.restrictions.user")
+                )
             }
 
         val pageUri =
