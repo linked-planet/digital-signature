@@ -13,7 +13,7 @@ class UserProfileByName : Comparator<UserProfile> {
         ret = nn(u1.username).compareTo(nn(u2.username))
         if (ret != 0) return ret
 
-        return Integer.compare(u1.hashCode(), u2.hashCode())
+        return u1.hashCode().compareTo(u2.hashCode())
     }
 
     private fun nn(string: String?): String {

@@ -2,9 +2,6 @@ package com.baloise.confluence.digitalsignature.rest
 
 import com.atlassian.bandana.BandanaManager
 import com.atlassian.confluence.api.model.Expansion
-import com.atlassian.confluence.api.model.Expansions
-import com.atlassian.confluence.api.model.content.Content
-import com.atlassian.confluence.api.model.content.Space
 import com.atlassian.confluence.api.model.content.id.ContentId
 import com.atlassian.confluence.api.model.pagination.PageResponse
 import com.atlassian.confluence.api.model.pagination.PageResponseImpl
@@ -13,13 +10,11 @@ import com.atlassian.confluence.api.model.people.SubjectType
 import com.atlassian.confluence.api.model.people.User
 import com.atlassian.confluence.api.model.permissions.ContentRestriction
 import com.atlassian.confluence.api.model.permissions.OperationKey
-import com.atlassian.confluence.api.model.reference.Reference
 import com.atlassian.confluence.api.service.content.ContentService
 import com.atlassian.confluence.api.service.permissions.ContentRestrictionService
 import com.atlassian.confluence.pages.PageManager
 import com.atlassian.confluence.plugin.services.VelocityHelperService
 import com.atlassian.confluence.renderer.radeox.macros.MacroUtils
-import com.atlassian.confluence.security.ContentPermission
 import com.atlassian.confluence.setup.bandana.ConfluenceBandanaContext
 import com.atlassian.confluence.setup.settings.GlobalSettingsManager
 import com.atlassian.confluence.user.AuthenticatedUserThreadLocal
@@ -85,8 +80,7 @@ class DigitalSignatureService() {
     @GET
     @Path("sign")
     fun sign(
-        @QueryParam("key") key: String?,
-        @Context uriInfo: UriInfo?
+        @QueryParam("key") key: String?
     ): Response {
         val confluenceUser = AuthenticatedUserThreadLocal.get()
         val userName = confluenceUser.name

@@ -35,7 +35,7 @@ class ContextHelper {
 
     fun getProfiles(userManager: UserManager, userNames: Set<String>): Map<String, UserProfile> {
         val ret: MutableMap<String, UserProfile> = HashMap()
-        if (Signature2.Companion.isPetitionMode(userNames)) return ret
+        if (Signature2.isPetitionMode(userNames)) return ret
         for (userName in userNames) {
             ret[userName] = getProfileNotNull(userManager, userName)
         }
@@ -49,7 +49,7 @@ class ContextHelper {
 
     fun getOrderedProfiles(userManager: UserManager, userNames: Set<String>): SortedSet<UserProfile> {
         val ret: SortedSet<UserProfile> = TreeSet(UserProfileByName())
-        if (Signature2.Companion.isPetitionMode(userNames)) return ret
+        if (Signature2.isPetitionMode(userNames)) return ret
         for (userName in userNames) {
             ret.add(getProfileNotNull(userManager, userName))
         }
@@ -61,6 +61,6 @@ class ContextHelper {
     }
 
     fun hasEmail(profile: UserProfile?): Boolean {
-        return profile != null && profile.email != null && !profile.email.trim { it <= ' ' }.isEmpty()
+        return profile != null && profile.email != null && profile.email.trim { it <= ' ' }.isNotEmpty()
     }
 }

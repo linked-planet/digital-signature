@@ -58,12 +58,7 @@ class DigitalSignatureMacro(): Macro {
         @Bean get() = importOsgiService(UserAccessor::class.java)
 
     private val markdown = Markdown()
-    private val all: MutableSet<String> = HashSet()
     private val contextHelper = ContextHelper()
-
-    init {
-        all.add("*")
-    }
 
     override fun execute(params: Map<String, String>, body: String?, conversionContext: ConversionContext): String {
         if (body == null || body.length <= 10) {
@@ -71,10 +66,10 @@ class DigitalSignatureMacro(): Macro {
         }
 
         val userGroups = getSet(params, "signerGroups")
-        val petitionMode: Boolean = Signature2.Companion.isPetitionMode(userGroups)
-        val signers = if (petitionMode) all else contextHelper.union<String>(
+        val petitionMode: Boolean = Signature2.isPetitionMode(userGroups)
+        val signers = if (petitionMode) setOf("*") else contextHelper.union(
             getSet(params, "signers"), loadUserGroups(userGroups), loadInheritedSigners(
-                InheritSigners.Companion.ofValue(
+                InheritSigners.ofValue(
                     params["inheritSigners"] ?: ""
                 ), conversionContext
             )
@@ -89,7 +84,7 @@ class DigitalSignatureMacro(): Macro {
         val protectedContent = getBoolean(params, "protectedContent", false)
         if (protectedContent && isPage(conversionContext)) {
             try {
-                ensureProtectedPage(conversionContext, entity as Page, signature)
+                ensureProtectedPage(entity as Page, signature)
             } catch (e: Exception) {
                 return warning(
                     i18nResolver.getText(
@@ -110,7 +105,7 @@ class DigitalSignatureMacro(): Macro {
         page: ContentEntityObject,
         signature: Signature2,
         protectedContent: Boolean
-    ): Map<String?, Any?> {
+    ): Map<String, Any?> {
         val currentUser = AuthenticatedUserThreadLocal.get()
         val currentUserName = currentUser.name
         val protectedContentAccess = protectedContent && (permissionManager.hasPermission(
@@ -150,14 +145,15 @@ class DigitalSignatureMacro(): Macro {
         return context
     }
 
-    private fun ensureProtectedPage(conversionContext: ConversionContext, page: Page, signature: Signature2) {
+    private fun ensureProtectedPage(page: Page, signature: Signature2) {
         val parentPage = contentService.find(Expansion("space")).withId(ContentId.of(page.id)).fetchOrNull()
-        val protectedPageExists = contentService.find(Expansion("id"))
+        contentService.find(Expansion("id"))
             .withTitle(signature.protectedKey)
             .withSpace(parentPage.space)
             .withType(ContentType.PAGE)
-            .fetchOrNull()?.let { true } ?: false
-        if (!protectedPageExists) {
+            .fetchOrNull()
+            ?: {
+
             val editors = page.getContentPermissionSet(ContentPermission.EDIT_PERMISSION)
             check(!editors.isEmpty) { "No editors found!" }
             val protectedPage = Page()
@@ -217,7 +213,8 @@ class DigitalSignatureMacro(): Macro {
     }
 
     private fun warning(message: String): String {
-        return """<div class="aui-message aui-message-warning">
+        return """
+<div class="aui-message aui-message-warning">
     <p class="title">
         <strong>${i18nResolver.getText("com.baloise.confluence.digital-signature.signature.label")}</strong>
     </p>
@@ -388,7 +385,7 @@ class DigitalSignatureMacro(): Macro {
         return ret.toString()
     }
 
-    fun urlEncode(string: String): String {
+    private fun urlEncode(string: String): String {
         try {
             return URLEncoder.encode(string, StandardCharsets.UTF_8.name())
         } catch (e: UnsupportedEncodingException) {

@@ -45,14 +45,14 @@ class Signature : Serializable, Cloneable {
         return result
     }
 
-    override fun equals(obj: Any?): Boolean {
-        if (this === obj) return true
-        if (obj == null) return false
-        if (javaClass != obj.javaClass) return false
-        val other = obj as Signature
-        return if (key == null) {
-            other.key == null
-        } else key == other.key
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        other?.let {
+            if (javaClass != it.javaClass) return false
+            return if (key == null) {
+                (it as Signature).key == null
+            } else key == (it as Signature).key
+        } ?: return false
     }
 
     fun withNotified(notified: Set<String>): Signature {
