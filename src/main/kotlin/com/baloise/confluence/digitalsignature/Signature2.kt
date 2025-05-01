@@ -11,7 +11,7 @@ import java.util.*
 import kotlin.collections.HashMap
 
 class Signature2(var pageId: Long, var body: String, var title: String) : Serializable {
-    var hash = DigestUtils.sha256Hex("$pageId:$title:$body")
+    var hash: String = DigestUtils.sha256Hex("$pageId:$title:$body")
     var key = "signature.$hash"
     val protectedKey: String = "protected.$hash"
     var maxSignatures: Long = -1
