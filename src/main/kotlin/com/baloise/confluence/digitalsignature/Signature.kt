@@ -10,7 +10,7 @@ import java.util.*
  * <br></br>
  * Use @[com.baloise.confluence.digitalsignature.Signature2] instead.
  */
-@Deprecated("")
+@Deprecated("Will be removed with version 9.0.0. Make sure there are no legacy signatures left before updating", level = DeprecationLevel.WARNING)
 class Signature : Serializable, Cloneable {
     var key: String? = ""
     var hash: String? = ""

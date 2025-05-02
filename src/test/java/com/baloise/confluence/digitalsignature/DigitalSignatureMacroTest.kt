@@ -49,72 +49,27 @@ internal class DigitalSignatureMacroTest {
 
     @Test
     fun mailtoLong(): Unit {
-            val macro = DigitalSignatureMacro()
-            val profiles: MutableList<UserProfile> = ArrayList()
-            val profile = object : UserProfile {
-                override fun getUserKey(): UserKey {
-                    TODO("Not yet implemented")
-                }
-
-                override fun getUsername(): String {
-                    TODO("Not yet implemented")
-                }
-
-                override fun getFullName(): String =
-                    "Heinz Meier"
-
-                override fun getEmail(): String = "heinz.meier@meier.com"
-
-                override fun getProfilePictureUri(p0: Int, p1: Int): URI {
-                    TODO("Not yet implemented")
-                }
-
-                override fun getProfilePictureUri(): URI {
-                    TODO("Not yet implemented")
-                }
-
-                override fun getProfilePageUri(): URI {
-                    TODO("Not yet implemented")
-                }
-
-            }
-            for (i in 0..19) {
-                profiles.add(profile)
-            }
-
-            val mailto = macro.getMailto(profiles, "Subject", true, null)
-
-            Assertions.assertEquals(
-                "mailto:heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com?Subject=Subject",
-                mailto
-            )
+        val macro = DigitalSignatureMacro()
+        val profiles: MutableList<UserProfile> = ArrayList()
+        val profile = buildUserProfile("Heinz Meier", "heinz.meier@meier.com")
+        for (i in 0..19) {
+            profiles.add(profile)
         }
+
+        val mailto = macro.getMailto(profiles, "Subject", true, null)
+
+        Assertions.assertEquals(
+            "mailto:heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com?Subject=Subject",
+            mailto
+        )
+    }
 
     @Test
     fun mailtoVeryLong(): Unit {
         val macro =
             DigitalSignatureMacro()
         val profiles: MutableList<UserProfile> = ArrayList()
-        val profile = object : UserProfile {
-            override fun getFullName(): String = "Heinz Meier"
-            override fun getEmail(): String = "heinz.meier@meier.com"
-
-            override fun getUserKey(): UserKey {
-                TODO("Not yet implemented")
-            }
-            override fun getUsername(): String {
-                TODO("Not yet implemented")
-            }
-            override fun getProfilePictureUri(p0: Int, p1: Int): URI {
-                TODO("Not yet implemented")
-            }
-            override fun getProfilePictureUri(): URI {
-                TODO("Not yet implemented")
-            }
-            override fun getProfilePageUri(): URI {
-                TODO("Not yet implemented")
-            }
-        }
+        val profile = buildUserProfile("Heinz Meier", "heinz.meier@meier.com")
         for (i in 0..199) {
             profiles.add(profile)
         }
@@ -131,9 +86,20 @@ internal class DigitalSignatureMacroTest {
     fun mailtoShort(): Unit {
         val macro = DigitalSignatureMacro()
         val profiles: MutableList<UserProfile> = ArrayList()
-        val profile = object : UserProfile {
-            override fun getFullName(): String = "Heinz Meier"
-            override fun getEmail(): String = "heinz.meier@meier.com"
+        val profile = buildUserProfile("Heinz Meier", "heinz.meier@meier.com")
+        profiles.add(profile)
+
+        val mailto = macro.getMailto(profiles, "Subject", true, null)
+
+        Assertions.assertEquals(
+            "mailto:Heinz Meier<heinz.meier@meier.com>?Subject=Subject",
+            mailto
+        )
+    }
+
+    fun buildUserProfile(userName: String, userEmail: String)= object : UserProfile {
+            override fun getFullName(): String = userName
+            override fun getEmail(): String = userEmail
 
             override fun getUserKey(): UserKey {
                 TODO("Not yet implemented")
@@ -151,13 +117,4 @@ internal class DigitalSignatureMacroTest {
                 TODO("Not yet implemented")
             }
         }
-        profiles.add(profile)
-
-        val mailto = macro.getMailto(profiles, "Subject", true, null)
-
-        Assertions.assertEquals(
-            "mailto:Heinz Meier<heinz.meier@meier.com>?Subject=Subject",
-            mailto
-        )
-    }
 }
