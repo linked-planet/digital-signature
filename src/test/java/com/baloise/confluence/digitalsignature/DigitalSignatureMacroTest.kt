@@ -102,19 +102,19 @@ internal class DigitalSignatureMacroTest {
             override fun getEmail(): String = userEmail
 
             override fun getUserKey(): UserKey {
-                TODO("Not yet implemented")
+                throw UnsupportedOperationException("Not yet implemented")
             }
             override fun getUsername(): String {
-                TODO("Not yet implemented")
+                throw UnsupportedOperationException("Not yet implemented")
             }
             override fun getProfilePictureUri(p0: Int, p1: Int): URI {
-                TODO("Not yet implemented")
+                throw UnsupportedOperationException("Not yet implemented")
             }
             override fun getProfilePictureUri(): URI {
-                TODO("Not yet implemented")
+                throw UnsupportedOperationException("Not yet implemented")
             }
             override fun getProfilePageUri(): URI {
-                TODO("Not yet implemented")
+                throw UnsupportedOperationException("Not yet implemented")
             }
         }
 }
