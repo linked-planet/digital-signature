@@ -15,7 +15,7 @@
     <properties>
         <confluence.version>9.2.3</confluence.version>
         <confluence.data.version>9.2.3</confluence.data.version>
-        <amps.version>8.11.1</amps.version>
+        <amps.version>9.3.3</amps.version>
         <plugin.testrunner.version>2.0.3</plugin.testrunner.version>
         <!-- This property ensures consistency between the key in atlassian-plugin.xml and the OSGi bundle's key. -->
         <atlassian.plugin.key>${project.groupId}.${project.artifactId}</atlassian.plugin.key>
