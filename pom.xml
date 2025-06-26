@@ -10,7 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.baloise.confluence</groupId>
     <artifactId>digital-signature</artifactId>
-    <version>8.0.0</version>
+    <version>8.0.1</version>
 
     <properties>
         <confluence.version>9.2.3</confluence.version>
