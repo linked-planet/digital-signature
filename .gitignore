@@ -1,5 +1,7 @@
 /src/test/resources/signature-test.ser
 
+.direnv/
+
 /.settings
 /.classpath
 /.project
