@@ -1,0 +1,13 @@
+<toolchains>
+    <!-- JDK 21: Eclipse Temurin (or Nix JDK 21 via JDK21_HOME) -->
+    <toolchain>
+        <type>jdk</type>
+        <provides>
+            <version>21</version>
+            <vendor>eclipse-temurin</vendor>
+        </provides>
+        <configuration>
+            <jdkHome>${env.JDK21_HOME}</jdkHome>
+        </configuration>
+    </toolchain>
+</toolchains>

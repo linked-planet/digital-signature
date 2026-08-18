@@ -13,22 +13,25 @@
     <version>8.0.2-SNAPSHOT</version>
 
     <properties>
-        <confluence.version>9.2.3</confluence.version>
-        <confluence.data.version>9.2.3</confluence.data.version>
-        <amps.version>9.3.3</amps.version>
-        <plugin.testrunner.version>2.0.3</plugin.testrunner.version>
         <!-- This property ensures consistency between the key in atlassian-plugin.xml and the OSGi bundle's key. -->
         <atlassian.plugin.key>${project.groupId}.${project.artifactId}</atlassian.plugin.key>
+
+        <platform.version>8.3.21</platform.version>
+        <confluence.version>10.2.15</confluence.version>
+        <amps.version>9.12.6</amps.version>
+        <plugin.testrunner.version>2.0.18</plugin.testrunner.version>
+        <junit.version>6.1.2</junit.version>
+
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <maven.compiler.version>3.14.0</maven.compiler.version>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.release>21</maven.compiler.release>
+        <kotlin.compiler.jvmTarget>21</kotlin.compiler.jvmTarget>
+        <kotlin.version>2.4.10</kotlin.version>
         <maven.javadoc.skip>true</maven.javadoc.skip>
         <allow.google.tracking>false</allow.google.tracking>
-        <kotlin.version>2.1.20</kotlin.version>
-        <kotlin.compiler.jvmTarget>17</kotlin.compiler.jvmTarget>
     </properties>
-
 
     <organization>
         <name>Baloise</name>
@@ -46,17 +49,40 @@
         <url>https://github.com/baloise/digital-signature.git</url>
     </scm>
 
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.atlassian.platform.dependencies</groupId>
+                <artifactId>platform-public-api</artifactId>
+                <version>${platform.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>com.vladsch.flexmark</groupId>
             <artifactId>flexmark</artifactId>
-            <version>0.62.2</version>
+            <version>0.64.8</version>
         </dependency>
 
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
-            <version>2.8.9</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -64,6 +90,16 @@
             <artifactId>confluence</artifactId>
             <version>${confluence.version}</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.transaction</groupId>
+                    <artifactId>jta</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>jta</groupId>
+                    <artifactId>jta</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -71,24 +107,34 @@
             <artifactId>mywork-api</artifactId>
             <version>1.0.2</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.transaction</groupId>
+                    <artifactId>jta</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>jta</groupId>
+                    <artifactId>jta</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
-            <groupId>javax.inject</groupId>
-            <artifactId>javax.inject</artifactId>
-            <version>1</version>
+            <groupId>jakarta.inject</groupId>
+            <artifactId>jakarta.inject-api</artifactId>
+            <version>2.0.1</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>javax.ws.rs</groupId>
-            <artifactId>jsr311-api</artifactId>
-            <version>1.1.1</version>
+            <groupId>jakarta.ws.rs</groupId>
+            <artifactId>jakarta.ws.rs-api</artifactId>
+            <version>3.1.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>javax.transaction</groupId>
-            <artifactId>jta</artifactId>
-            <version>1.1</version>
+            <groupId>com.atlassian.plugins.rest</groupId>
+            <artifactId>atlassian-rest-v2-api</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.osgi</groupId>
@@ -99,31 +145,33 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-beans</artifactId>
-            <version>5.3.39-atlassian-3</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
-            <version>5.3.39-atlassian-3</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.atlassian.plugins</groupId>
             <artifactId>atlassian-plugins-osgi-javaconfig</artifactId>
-            <version>0.6.0</version>
+            <version>0.6.1</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-stdlib-jdk8</artifactId>
+            <artifactId>kotlin-stdlib</artifactId>
             <version>${kotlin.version}</version>
         </dependency>
 
         <!-- WIRED TEST RUNNER DEPENDENCIES -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.8.2</version>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -138,22 +186,38 @@
             <version>2.0.17</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-test</artifactId>
-            <version>${kotlin.version}</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <!-- ENFORCE Java 21 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-toolchains-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>toolchain</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <toolchains>
+                        <jdk>
+                            <version>21</version>
+                            <vendor>eclipse-temurin</vendor>
+                        </jdk>
+                    </toolchains>
+                </configuration>
+            </plugin>
+
             <!-- BUILD HELPER -->
             <!-- make plugins aware of the src/main/kotlin source folder -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.5.0</version>
+                <version>3.6.1</version>
                 <executions>
                     <execution>
                         <phase>generate-sources</phase>
@@ -212,18 +276,15 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <languageVersion>2.1</languageVersion>
-                    <apiVersion>2.1</apiVersion>
-                    <args>
-                        <arg>-Xwhen-guards</arg>
-                    </args>
+                    <jvmTarget>${kotlin.compiler.jvmTarget}</jvmTarget>
+                    <languageVersion>2.4</languageVersion>
+                    <apiVersion>2.4</apiVersion>
                 </configuration>
-
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.15.0</version>
                 <executions>
                     <!-- Replacing default-compile as it is treated specially by maven -->
                     <execution>
@@ -255,6 +316,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
+                <version>3.5.0</version>
                 <executions>
                     <execution>
                         <id>prepare-versions-file</id>
@@ -287,7 +349,7 @@
                 <extensions>true</extensions>
                 <configuration>
                     <productVersion>${confluence.version}</productVersion>
-                    <productDataVersion>${confluence.data.version}</productDataVersion>
+                    <productDataVersion>${confluence.version}</productDataVersion>
                     <enableQuickReload>false</enableQuickReload>
                     <extractDependencies>false</extractDependencies>
                     <banningExcludes>
@@ -319,9 +381,17 @@
             <url>https://repo1.maven.org/maven2/</url>
         </repository>
         <repository>
+            <id>atlassian-maven</id>
+            <name>Atlassian Maven Public</name>
+            <url>https://maven.atlassian.com/repository/public</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
             <id>atlassian-proxy</id>
             <name>Atlassian Maven 2 Proxy</name>
-            <url>https://packages.atlassian.com/artifactory/maven-atlassian-all/ </url>
+            <url>https://packages.atlassian.com/artifactory/maven-atlassian-all/</url>
         </repository>
         <repository>
             <releases>
@@ -343,15 +413,20 @@
         </repository>
     </repositories>
     <pluginRepositories>
- <pluginRepository>
-          <id>maven-central</id>
-          <name>Maven Central</name>
-          <url>https://repo1.maven.org/maven2/</url>
+        <pluginRepository>
+            <id>maven-central</id>
+            <name>Maven Central</name>
+            <url>https://repo1.maven.org/maven2/</url>
         </pluginRepository>
         <pluginRepository>
-          <id>atlassian-proxy</id>
-          <name>Atlassian Maven 2 Proxy</name>
-          <url>https://packages.atlassian.com/maven/repository/public</url>
+            <id>atlassian-maven</id>
+            <name>Atlassian Maven Public</name>
+            <url>https://maven.atlassian.com/repository/public</url>
+        </pluginRepository>
+        <pluginRepository>
+            <id>atlassian-proxy</id>
+            <name>Atlassian Maven 2 Proxy</name>
+            <url>https://packages.atlassian.com/maven/repository/public</url>
         </pluginRepository>
     </pluginRepositories>
 </project>
