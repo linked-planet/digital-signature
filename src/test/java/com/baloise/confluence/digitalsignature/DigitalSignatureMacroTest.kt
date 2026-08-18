@@ -1,51 +1,13 @@
 package com.baloise.confluence.digitalsignature
 
-import com.atlassian.bandana.BandanaContext
-import com.atlassian.bandana.BandanaManager
-import com.atlassian.config.ApplicationConfiguration
-import com.atlassian.config.db.DatabaseDetails
-import com.atlassian.config.db.HibernateConfig
-import com.atlassian.config.db.HibernateConfigurator
-import com.atlassian.config.setup.SetupPersister
-import com.atlassian.confluence.setup.BootstrapManager
-import com.atlassian.confluence.setup.SharedConfigurationMap
 import com.atlassian.sal.api.user.UserKey
 import com.atlassian.sal.api.user.UserProfile
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import java.io.File
 import java.net.URI
-import java.sql.Connection
-import java.util.*
-import kotlin.collections.ArrayList
 
 internal class DigitalSignatureMacroTest {
     private val signature = Signature2(1, "test", "title")
-    private val bandana: BandanaManager = object : BandanaManager {
-        private val content = mutableMapOf<String,Any>()
-        override fun init() {}
-
-        override fun setValue(p0: BandanaContext?, p1: String?, p2: Any?) {
-            content[p1!!] = p2!!
-        }
-
-        override fun getValue(p0: BandanaContext?, p1: String?): Any? {
-            return content[p1!!]
-        }
-
-        override fun getValue(p0: BandanaContext?, p1: String?, p2: Boolean): Any? {
-            return content[p1!!]
-        }
-
-        override fun getKeys(p0: BandanaContext?): MutableIterable<String> {
-            return content.keys
-        }
-
-        override fun removeValue(p0: BandanaContext?, p1: String?) {
-            content.remove(p1)
-        }
-
-    }
 
     @Test
     fun mailtoLong(): Unit {

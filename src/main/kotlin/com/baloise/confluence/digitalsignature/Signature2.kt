@@ -1,7 +1,6 @@
 package com.baloise.confluence.digitalsignature
 
 import com.atlassian.bandana.BandanaManager
-import com.atlassian.confluence.setup.bandana.ConfluenceBandanaContext
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import org.apache.commons.codec.digest.DigestUtils
@@ -133,8 +132,16 @@ class Signature2(var pageId: Long, var body: String, var title: String) : Serial
             }
         }
 
+        /**
+         * Persistence write. Bandana is read-only on Confluence 10 (`setValue` removed from the public API);
+         * this is a no-op until the AO/PluginSettings migration.
+         */
         fun toBandana(mgr: BandanaManager, key: String?, sig: Signature2) {
-            mgr.setValue(ConfluenceBandanaContext.GLOBAL_CONTEXT, key, sig.serialize())
+			//mgr.setValue(ConfluenceBandanaContext.GLOBAL_CONTEXT, key, sig.serialize())
+            log.error(
+                "Cannot persist signature '{}': BandanaManager.setValue is not available on Confluence 10",
+                key
+            )
         }
 
         @JvmStatic
