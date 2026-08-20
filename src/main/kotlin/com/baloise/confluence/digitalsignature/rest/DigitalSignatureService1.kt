@@ -1,6 +1,5 @@
 package com.baloise.confluence.digitalsignature.rest
 
-import com.atlassian.bandana.BandanaManager
 import com.atlassian.confluence.api.model.Expansion
 import com.atlassian.confluence.api.model.content.id.ContentId
 import com.atlassian.confluence.api.model.pagination.PageResponse
@@ -15,7 +14,6 @@ import com.atlassian.confluence.api.service.permissions.ContentRestrictionServic
 import com.atlassian.confluence.pages.PageManager
 import com.atlassian.confluence.plugin.services.VelocityHelperService
 import com.atlassian.confluence.renderer.radeox.macros.MacroUtils
-import com.atlassian.confluence.setup.bandana.ConfluenceBandanaContext
 import com.atlassian.confluence.setup.settings.GlobalSettingsManager
 import com.atlassian.confluence.user.AuthenticatedUserThreadLocal
 import com.atlassian.confluence.user.ConfluenceUser
@@ -45,14 +43,15 @@ import jakarta.ws.rs.core.Context
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.core.Response
 import jakarta.ws.rs.core.UriInfo
+import com.baloise.confluence.digitalsignature.ao.SignatureStore
 
 @Path("/")
 @Consumes(MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON)
 
 class DigitalSignatureService() {
-    private val bandanaManager: BandanaManager
-        @Bean get() = importOsgiService(BandanaManager::class.java)
+    private val signatureStore: SignatureStore
+        @Bean get() = importOsgiService(SignatureStore::class.java)
     private val settingsManager: GlobalSettingsManager
         @Bean get() = importOsgiService(GlobalSettingsManager::class.java)
     private val userManager: UserManager
@@ -85,7 +84,7 @@ class DigitalSignatureService() {
         val confluenceUser = AuthenticatedUserThreadLocal.get()
         val userName = confluenceUser.name
 
-        val signature = getSignatureFromBandana(key)
+        val signature = getSignature(key)
 
         if (signature == null || userName == null || userName.trim { it <= ' ' }.isEmpty()) {
             log.error(
@@ -108,7 +107,7 @@ class DigitalSignatureService() {
                 .build()
         }
 
-        Signature2.toBandana(bandanaManager, key, signature)
+        signatureStore.put(signature.key, signature)
         val baseUrl = settingsManager.globalSettings.baseUrl
         for (notifiedUser in signature.notify) {
             notify(notifiedUser, confluenceUser, signature, baseUrl)
@@ -213,7 +212,7 @@ class DigitalSignatureService() {
     @Produces("text/html; charset=UTF-8")
     @HtmlSafe
     fun export(@QueryParam("key") key: String?): String {
-        val signature: Signature2 = getSignatureFromBandana(key) ?: log.error(
+        val signature: Signature2 = getSignature(key) ?: log.error(
             "A signature is required to call this method.",
             NullPointerException("signature")
         ).run { return "ERROR: A signature is required to call this method." }
@@ -243,7 +242,7 @@ class DigitalSignatureService() {
         @QueryParam("emailOnly") emailOnly: Boolean,
         @Context uriInfo: UriInfo
     ): Response {
-        val signature: Signature2 = getSignatureFromBandana(key) ?: log.error(
+        val signature: Signature2 = getSignature(key) ?: log.error(
             "A signature is required to call this method.",
             NullPointerException("signature")
         ).run {
@@ -279,14 +278,11 @@ class DigitalSignatureService() {
         return Response.ok(velocityHelperService.getRenderedTemplate("templates/email.vm", context)).build()
     }
 
-    private fun getSignatureFromBandana(key: String?): Signature2? {
-        val value: Any? = bandanaManager.getValue(ConfluenceBandanaContext.GLOBAL_CONTEXT, key)
-        val (signature, requiresUpdate) = Signature2.fromBandana(value)
-        if (requiresUpdate) {
-            Signature2.toBandana(bandanaManager, key, signature!!)
-        }
-        return signature
-    }
+    /**
+     * @param key signature key
+     * @return stored signature, or `null` if the key is null or not found
+     */
+    private fun getSignature(key: String?): Signature2? = key?.let { signatureStore.get(it) }
 
     companion object {
         private val log: Logger = LoggerFactory.getLogger(DigitalSignatureService::class.java)

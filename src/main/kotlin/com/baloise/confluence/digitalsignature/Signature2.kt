@@ -1,6 +1,6 @@
 package com.baloise.confluence.digitalsignature
 
-import com.atlassian.bandana.BandanaManager
+import com.baloise.confluence.digitalsignature.ao.SignatureStore
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import org.apache.commons.codec.digest.DigestUtils
@@ -82,9 +82,13 @@ class Signature2(var pageId: Long, var body: String, var title: String) : Serial
         return !isMaxSignaturesReached && (isPetitionMode || missingSignatures.isNotEmpty())
     }
 
-    fun save(bandanaManager: BandanaManager) {
+    /**
+     * Persists this signature JSON into the live store when it still expects signers.
+     * Mirrors the old Bandana `save` semantics (`hasMissingSignatures()` guard).
+     */
+    fun save(store: SignatureStore) {
         if (hasMissingSignatures()) {
-            toBandana(bandanaManager, this)
+            store.put(key, this)
         }
     }
 
@@ -102,12 +106,13 @@ class Signature2(var pageId: Long, var body: String, var title: String) : Serial
         }
 
         @JvmStatic
-        fun fromBandana(value: Any?): Pair<Signature2?,Boolean> {
-            when(value) {
+        fun fromPersistedValue(value: Any?): Pair<Signature2?, Boolean> {
+            when (value) {
+                null -> return Pair(null, false)
                 is Signature -> {
                     // required for backwards compatibility - update for next time.
                     val signature = value
-                    val sig = Signature2(signature.pageId ?:-1, signature.body ?: "", signature.title ?: "")
+                    val sig = Signature2(signature.pageId ?: -1, signature.body ?: "", signature.title ?: "")
                     sig.signatures = signature.signatures.orEmpty()
                     sig.maxSignatures = signature.maxSignatures ?: 0
                     sig.hash = signature.hash ?: ""
@@ -122,31 +127,21 @@ class Signature2(var pageId: Long, var body: String, var title: String) : Serial
                         return Pair(deserialize(value), false)
                     } catch (e: Exception) {
                         log.error("Could not deserialize String value from Bandana", e)
-                        return Pair(null,false)
+                        return Pair(null, false)
                     }
                 }
                 else -> {
-                    log.warn("Received strange value from Bandana")
-                    return Pair(null,false)
+                    log.warn("Received strange value from persistence")
+                    return Pair(null, false)
                 }
             }
         }
 
         /**
-         * Persistence write. Bandana is read-only on Confluence 10 (`setValue` removed from the public API);
-         * this is a no-op until the AO/PluginSettings migration.
+         * Backwards-compatible alias for older code/tests.
+         * Prefer [fromPersistedValue] going forward.
          */
-        fun toBandana(mgr: BandanaManager, key: String?, sig: Signature2) {
-			//mgr.setValue(ConfluenceBandanaContext.GLOBAL_CONTEXT, key, sig.serialize())
-            log.error(
-                "Cannot persist signature '{}': BandanaManager.setValue is not available on Confluence 10",
-                key
-            )
-        }
-
         @JvmStatic
-        fun toBandana(mgr: BandanaManager, sig: Signature2) {
-            toBandana(mgr, sig.key, sig)
-        }
+        fun fromBandana(value: Any?): Pair<Signature2?, Boolean> = fromPersistedValue(value)
     }
 }

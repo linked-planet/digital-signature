@@ -85,6 +85,23 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- Active Objects (provided by Confluence) -->
+        <dependency>
+            <groupId>net.java.dev.activeobjects</groupId>
+            <artifactId>activeobjects-core</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.java.dev.activeobjects</groupId>
+            <artifactId>activeobjects-builder</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.atlassian.activeobjects</groupId>
+            <artifactId>activeobjects-core</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
         <dependency>
             <groupId>com.atlassian.confluence</groupId>
             <artifactId>confluence</artifactId>
@@ -213,13 +230,14 @@
             </plugin>
 
             <!-- BUILD HELPER -->
-            <!-- make plugins aware of the src/main/kotlin source folder -->
+            <!-- Register Kotlin source roots (Maven defaults only include **/java) -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
                 <version>3.6.1</version>
                 <executions>
                     <execution>
+                        <id>add-kotlin-source</id>
                         <phase>generate-sources</phase>
                         <goals>
                             <goal>add-source</goal>
@@ -227,6 +245,18 @@
                         <configuration>
                             <sources>
                                 <source>src/main/kotlin</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>add-kotlin-test-source</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>src/test/kotlin</source>
                             </sources>
                         </configuration>
                     </execution>
@@ -368,6 +398,7 @@
                         <!-- Ensure plugin is spring powered -->
                         <Spring-Context>*</Spring-Context>
                     </instructions>
+					<productDataPath>${project.basedir}/src/test/resources/generated-test-resources.zip</productDataPath>
                 </configuration>
             </plugin>
 

@@ -1,6 +1,5 @@
 package com.baloise.confluence.digitalsignature
 
-import com.atlassian.bandana.BandanaManager
 import com.atlassian.confluence.api.model.Expansion
 import com.atlassian.confluence.api.model.content.ContentType
 import com.atlassian.confluence.api.model.content.id.ContentId
@@ -18,7 +17,6 @@ import com.atlassian.confluence.renderer.radeox.macros.MacroUtils
 import com.atlassian.confluence.security.ContentPermission
 import com.atlassian.confluence.security.Permission
 import com.atlassian.confluence.security.PermissionManager
-import com.atlassian.confluence.setup.bandana.ConfluenceBandanaContext
 import com.atlassian.confluence.user.AuthenticatedUserThreadLocal
 import com.atlassian.confluence.user.UserAccessor
 import com.atlassian.plugins.osgi.javaconfig.OsgiServices.importOsgiService
@@ -27,6 +25,7 @@ import com.atlassian.sal.api.user.UserManager
 import com.atlassian.sal.api.user.UserProfile
 import com.atlassian.user.EntityException
 import com.atlassian.user.GroupManager
+import com.baloise.confluence.digitalsignature.ao.SignatureStore
 import org.springframework.context.annotation.Bean
 import java.io.UnsupportedEncodingException
 import java.net.URLEncoder
@@ -35,8 +34,8 @@ import java.util.*
 import java.util.stream.Collectors
 
 class DigitalSignatureMacro() : Macro {
-    private val bandanaManager: BandanaManager
-        @Bean get() = importOsgiService(BandanaManager::class.java)
+    private val signatureStore: SignatureStore
+        @Bean get() = importOsgiService(SignatureStore::class.java)
     private val userManager: UserManager
         @Bean get() = importOsgiService(UserManager::class.java)
     private val contextPathHolder: ContextPathHolder
@@ -307,40 +306,37 @@ class DigitalSignatureMacro() : Macro {
     }
 
     private fun sync(signature: Signature2, signers: Set<String>): Signature2 {
-        val value: Any? = bandanaManager.getValue(ConfluenceBandanaContext.GLOBAL_CONTEXT, signature.key)
-        val (sig, requiresUpdate) = Signature2.fromBandana(value)
-        if (requiresUpdate) {
-            Signature2.toBandana(bandanaManager, signature.key, sig!!)
-        }
-        sig?.also { loaded ->
+        val loaded = signatureStore.get(signature.key)
+        loaded?.also { loadedSig ->
             signature.signatures = loaded.signatures
             var save = false
 
-            if (loaded.notify != signature.notify) {
-                loaded.notify = signature.notify
+            if (loadedSig.notify != signature.notify) {
+                loadedSig.notify = signature.notify
                 save = true
             }
 
-            signature.missingSignatures = signers - loaded.signatures.keys
-            if (loaded.missingSignatures != signature.missingSignatures) {
-                loaded.missingSignatures = signature.missingSignatures
+            signature.missingSignatures = signers - loadedSig.signatures.keys
+            if (loadedSig.missingSignatures != signature.missingSignatures) {
+                loadedSig.missingSignatures = signature.missingSignatures
                 save = true
             }
 
-            if (loaded.maxSignatures != signature.maxSignatures) {
-                loaded.maxSignatures = signature.maxSignatures
+            if (loadedSig.maxSignatures != signature.maxSignatures) {
+                loadedSig.maxSignatures = signature.maxSignatures
                 save = true
             }
 
-            if (loaded.visibilityLimit != signature.visibilityLimit) {
-                loaded.visibilityLimit = signature.visibilityLimit
+            if (loadedSig.visibilityLimit != signature.visibilityLimit) {
+                loadedSig.visibilityLimit = signature.visibilityLimit
                 save = true
             }
 
             if (save) {
-                loaded.save(bandanaManager)
+                // Always put: notify/limits can change after the last signer; save() would no-op.
+                signatureStore.put(loadedSig.key, loadedSig)
             }
-        } ?: signature.apply { missingSignatures = signers }.save(bandanaManager)
+        } ?: signature.apply { missingSignatures = signers }.save(signatureStore)
         return signature
     }
 
