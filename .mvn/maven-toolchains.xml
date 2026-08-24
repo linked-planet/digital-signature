@@ -1,5 +1,5 @@
 <toolchains>
-    <!-- JDK 21: Eclipse Temurin (or Nix JDK 21 via JDK21_HOME) -->
+    <!-- JDK 21: setup-java and the Nix flake both export JAVA_HOME -->
     <toolchain>
         <type>jdk</type>
         <provides>
@@ -7,7 +7,7 @@
             <vendor>eclipse-temurin</vendor>
         </provides>
         <configuration>
-            <jdkHome>${env.JDK21_HOME}</jdkHome>
+            <jdkHome>${env.JAVA_HOME}</jdkHome>
         </configuration>
     </toolchain>
 </toolchains>

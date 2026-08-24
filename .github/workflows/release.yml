@@ -16,14 +16,15 @@ jobs:
     - name: Set up Java
       uses: actions/setup-java@v5
       with:
-        'distribution': temurin
+        distribution: 'temurin'
         java-version: '21'
+        cache: maven
 
     - name: Build with Maven 🔧
       run: mvn -B package --file pom.xml
 
     - name: Archive artifacts
-      uses: actions/upload-artifact@7
+      uses: actions/upload-artifact@v7
       with:
         name: Artifacts
         path: |
@@ -44,11 +45,11 @@ jobs:
         ls artifacts
 
     - name: Deploy 🚀
-      uses: JamesIves/github-pages-deploy-action@4
+      uses: JamesIves/github-pages-deploy-action@v4
       with:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        BRANCH: gh-pages
-        FOLDER: artifacts
-        CLEAN: false
-        TARGET_FOLDER: ${GITHUB_REF##*/}
-        COMMIT_MESSAGE: Releasing tag/branch ${GITHUB_REF##*/}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        branch: gh-pages
+        folder: artifacts
+        clean: false
+        target-folder: ${{ github.ref_name }}
+        commit-message: Releasing tag/branch ${{ github.ref_name }}
