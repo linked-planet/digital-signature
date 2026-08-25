@@ -221,31 +221,10 @@
                 </plugin>
             </plugins>
         </pluginManagement>
-        <plugins>
-            <!-- ENFORCE Java 21 -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-toolchains-plugin</artifactId>
-                <version>3.2.0</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>toolchain</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <toolchains>
-                        <jdk>
-                            <version>21</version>
-                            <vendor>eclipse-temurin</vendor>
-                        </jdk>
-                    </toolchains>
-                </configuration>
-            </plugin>
 
+        <plugins>
             <!-- BUILD HELPER -->
-			<!-- make plugins aware of the src/main/kotlin source folder -->
+            <!-- make plugins aware of the src/main/kotlin source folder -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
@@ -264,6 +243,7 @@
                     </execution>
                 </executions>
             </plugin>
+
             <!-- Clean Maven directories that get corrupted when rebuilding the project with IntelliJ
                  or on successive Maven builds -->
             <plugin>
@@ -345,6 +325,7 @@
                 </executions>
             </plugin>
 
+            <!-- RESOURCES -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
@@ -400,10 +381,9 @@
                         <!-- Ensure plugin is spring powered -->
                         <Spring-Context>*</Spring-Context>
                     </instructions>
-					<productDataPath>${project.basedir}/src/test/resources/generated-test-resources.zip</productDataPath>
+                    <productDataPath>${project.basedir}/src/test/resources/generated-test-resources.zip</productDataPath>
                 </configuration>
             </plugin>
-
         </plugins>
     </build>
 
@@ -445,6 +425,7 @@
             <url>https://maven.anypoint.mulesoft.com/api/v1/maven/</url>
         </repository>
     </repositories>
+
     <pluginRepositories>
         <pluginRepository>
             <id>maven-central</id>
