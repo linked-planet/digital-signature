@@ -1,0 +1,56 @@
+# syntax=docker/dockerfile:1
+
+name: dev-confluence
+
+# Inspired by https://community.atlassian.com/t5/Confluence-articles/Confluence-Deployment-using-Docker-Compose/ba-p/1898938
+services:
+  confluence:
+    depends_on:
+      postgres:
+        condition: service_healthy
+    build:
+      args:
+        CONFLUENCE_VERSION: ${CONFLUENCE_VERSION-9.2.12}
+        FRONTEND_DEV_MODE: ${FRONTEND_DEV_MODE-false}
+        CONFLUENCE_LICENSE: ${CONFLUENCE_LICENSE}
+      dockerfile: ./dev-confluence.Dockerfile
+      context: ./
+    restart: always
+    environment:
+      ATL_JDBC_URL: jdbc:postgresql://postgres:5432/confdb
+      ATL_JDBC_USER: confdb
+      ATL_JDBC_PASSWORD: confdb
+      ATL_DB_TYPE: postgresql
+      ATL_DB_DRIVER: org.postgresql.Driver
+      ATL_DB_SCHEMA_NAME: public
+    ports:
+      - "8090:8090"
+      - "8091:8091"
+      - "5005:5005"
+    volumes:
+      - './confluence-home:/var/atlassian/application-data/confluence'
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --max-time 2 http://localhost:8090/status | grep '\"state\":\"RUNNING\"' || exit 1"]
+      interval: 10s
+      retries: 12
+      start_period: 30s
+      timeout: 5s
+
+  postgres:
+    image: postgres:16
+    restart: always
+    command: ["postgres", "-c", "log_statement=all", "-c", "max_connections=200"]
+    environment:
+      POSTGRES_DB: confdb
+      POSTGRES_USER: confdb
+      POSTGRES_PASSWORD: confdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - './database.sql:/init.sql'
+      - './initdb.sh:/docker-entrypoint-initdb.d/initdb.sh'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

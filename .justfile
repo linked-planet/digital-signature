@@ -1,4 +1,7 @@
 license_secret_path := "lpd/linked-planet/atlassian/license/dc/confluence"
+deploy_url := "http://localhost:8080"
+deploy_user := "admin"
+deploy_pass := "admin"
 
 default:
   @just --choose
@@ -34,6 +37,31 @@ deploy:
 redeploy *args="":
   @just build {{args}}
   @just deploy
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#                              DOCKER SERVICES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Start Docker Services
+up:
+    docker compose \
+      -f ./local-env/docker-compose.yml \
+      -p local-env \
+      up \
+      --always-recreate-deps \
+      --force-recreate \
+      -d \
+      --build
+
+# Stop Docker Services
+down:
+    docker compose \
+      -f ./local-env/docker-compose.yml \
+      down
+
+# Restart all Docker Services
+restart: down && up
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
