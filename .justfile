@@ -1,5 +1,5 @@
 license_secret_path := "lpd/linked-planet/atlassian/license/dc/confluence"
-deploy_url := "http://localhost:8080"
+deploy_url := "http://localhost:8090"
 deploy_user := "admin"
 deploy_pass := "admin"
 
@@ -43,25 +43,30 @@ redeploy *args="":
 #                              DOCKER SERVICES
 # ═══════════════════════════════════════════════════════════════════════════════
 
+compose := "docker compose -f ./local-env/docker-compose.yml -p local-env"
+
 # Start Docker Services
 up:
-    docker compose \
-      -f ./local-env/docker-compose.yml \
-      -p local-env \
-      up \
+    {{compose}} up \
       --always-recreate-deps \
       --force-recreate \
       -d \
       --build
 
-# Stop Docker Services
+# Stop Docker Services (graceful stop first — Confluence needs time to flush)
 down:
-    docker compose \
-      -f ./local-env/docker-compose.yml \
-      down
+    {{compose}} stop --timeout 120
+    {{compose}} down --remove-orphans
 
 # Restart all Docker Services
 restart: down && up
+
+# Wipe local Confluence+Postgres state (re-run setup wizard afterwards)
+reset-env: down
+    #!/usr/bin/env bash
+    set -euo pipefail
+    rm -rf ./local-env/confluence-home ./local-env/postgres-home
+    echo "Wiped local-env homes. Run: just up"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -84,3 +89,6 @@ confluence-license:
         echo "Couldn't retrieve secret: gopass or pass not installed" >&2
         exit 1
     fi
+
+logs:
+    {{compose}} logs -f confluence

@@ -11,3 +11,7 @@
 *.iml
 .serena
 
+# Local docker Confluence/Postgres state
+/local-env/confluence-home/
+/local-env/postgres-home/
+
