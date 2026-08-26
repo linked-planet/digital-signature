@@ -68,6 +68,31 @@ reset-env: down
     rm -rf ./local-env/confluence-home ./local-env/postgres-home
     echo "Wiped local-env homes. Run: just up"
 
+# Snapshot confluence-home + postgres-home into local-env/local-env-homes.zip (needs sudo)
+save-home:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd ./local-env
+    # sudo: home dirs are owned by container users
+    sudo rm -f local-env-homes.zip
+    sudo zip -r local-env-homes.zip confluence-home postgres-home \
+        -x "confluence-home/analytics-logs/*" \
+           "confluence-home/plugins/installed-plugins/*digital-signature*.jar" \
+           "confluence-home/plugins/.bundled-plugins/*" \
+           "confluence-home/plugins/.osgi-plugins/*" \
+           "confluence-home/export/*" \
+           "confluence-home/log/*" \
+           "confluence-home/tmp/*"
+
+# Restore confluence-home + postgres-home from local-env/local-env-homes.zip (needs sudo)
+load-home:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd ./local-env
+    sudo rm -rf confluence-home postgres-home || true
+    unzip local-env-homes.zip
+    sudo chmod -R 777 confluence-home postgres-home
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #                                 UTILITIES
