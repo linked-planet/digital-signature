@@ -381,7 +381,6 @@
                         <!-- Ensure plugin is spring powered -->
                         <Spring-Context>*</Spring-Context>
                     </instructions>
-                    <productDataPath>${project.basedir}/src/test/resources/generated-test-resources.zip</productDataPath>
                 </configuration>
             </plugin>
 
