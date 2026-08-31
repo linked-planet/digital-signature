@@ -1,5 +1,7 @@
 package com.baloise.confluence.digitalsignature.upgrade
 
+import com.atlassian.plugin.spring.scanner.annotation.component.ConfluenceComponent
+import com.atlassian.plugin.spring.scanner.annotation.export.ExportAsService
 import com.atlassian.sal.api.message.Message
 import com.atlassian.sal.api.upgrade.PluginUpgradeTask
 import com.baloise.confluence.digitalsignature.Signature2
@@ -14,6 +16,8 @@ import org.apache.logging.log4j.LogManager
  *
  * Throws if any key fails so SAL does not advance the plugin build number and the task can retry.
  */
+@ConfluenceComponent
+@ExportAsService(PluginUpgradeTask::class)
 class BandanaToAoUpgradeTask(
     private val store: SignatureStore,
     private val bandana: BandanaFallback,

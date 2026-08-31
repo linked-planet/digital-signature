@@ -21,6 +21,7 @@
         <amps.version>9.12.6</amps.version>
         <plugin.testrunner.version>2.0.18</plugin.testrunner.version>
         <junit.version>6.1.2</junit.version>
+        <atlassian.spring.scanner.version>6.0.2</atlassian.spring.scanner.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -170,9 +171,10 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.atlassian.plugins</groupId>
-            <artifactId>atlassian-plugins-osgi-javaconfig</artifactId>
-            <version>0.6.1</version>
+            <groupId>com.atlassian.plugin</groupId>
+            <artifactId>atlassian-spring-scanner-annotation</artifactId>
+            <version>${atlassian.spring.scanner.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
@@ -221,31 +223,10 @@
                 </plugin>
             </plugins>
         </pluginManagement>
-        <plugins>
-            <!-- ENFORCE Java 21 -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-toolchains-plugin</artifactId>
-                <version>3.2.0</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>toolchain</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <toolchains>
-                        <jdk>
-                            <version>21</version>
-                            <vendor>eclipse-temurin</vendor>
-                        </jdk>
-                    </toolchains>
-                </configuration>
-            </plugin>
 
+        <plugins>
             <!-- BUILD HELPER -->
-			<!-- make plugins aware of the src/main/kotlin source folder -->
+            <!-- make plugins aware of the src/main/kotlin source folder -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
@@ -264,6 +245,7 @@
                     </execution>
                 </executions>
             </plugin>
+
             <!-- Clean Maven directories that get corrupted when rebuilding the project with IntelliJ
                  or on successive Maven builds -->
             <plugin>
@@ -345,6 +327,7 @@
                 </executions>
             </plugin>
 
+            <!-- RESOURCES -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
@@ -373,6 +356,21 @@
                 </executions>
             </plugin>
 
+            <!-- SPRING SCANNER -->
+            <plugin>
+                <groupId>com.atlassian.plugin</groupId>
+                <artifactId>atlassian-spring-scanner-maven-plugin</artifactId>
+                <version>${atlassian.spring.scanner.version}</version>
+                <executions>
+                    <execution>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>atlassian-spring-scanner</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- CONFLUENCE -->
             <plugin>
                 <groupId>com.atlassian.maven.plugins</groupId>
@@ -393,17 +391,27 @@
                         <Export-Package>com.baloise.confluence.digitalsignature.api</Export-Package>
                         <!-- Add package import here -->
                         <Import-Package>
-                            org.springframework.osgi.*;resolution:="optional",
-                            org.eclipse.gemini.blueprint.*;resolution:="optional",
                             *;version="0";resolution:=optional
                         </Import-Package>
                         <!-- Ensure plugin is spring powered -->
                         <Spring-Context>*</Spring-Context>
                     </instructions>
-					<productDataPath>${project.basedir}/src/test/resources/generated-test-resources.zip</productDataPath>
                 </configuration>
             </plugin>
 
+            <!-- UPM -->
+            <plugin>
+                <groupId>com.linked-planet.maven</groupId>
+                <artifactId>upm-maven-plugin</artifactId>
+                <version>2.2.1</version>
+                <configuration>
+                    <baseUrl>${deploy.url}</baseUrl>
+                    <username>${deploy.username}</username>
+                    <password>${deploy.password}</password>
+                    <pluginKey>${atlassian.plugin.key}</pluginKey>
+                    <pluginFile>${project.build.directory}/${project.artifactId}-${project.version}.jar</pluginFile>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
@@ -445,6 +453,7 @@
             <url>https://maven.anypoint.mulesoft.com/api/v1/maven/</url>
         </repository>
     </repositories>
+
     <pluginRepositories>
         <pluginRepository>
             <id>maven-central</id>

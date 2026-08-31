@@ -1,10 +1,13 @@
 package com.baloise.confluence.digitalsignature.ao
 
 import com.atlassian.activeobjects.external.ActiveObjects
+import com.atlassian.plugin.spring.scanner.annotation.component.ConfluenceComponent
+import com.atlassian.plugin.spring.scanner.annotation.imports.ComponentImport
 import com.baloise.confluence.digitalsignature.Signature2
 import net.java.ao.DBParam
 import net.java.ao.Query
 import org.apache.logging.log4j.LogManager
+import org.springframework.beans.factory.annotation.Autowired
 
 /**
  * Thrown when an AO row exists for [key] but its payload cannot be deserialized.
@@ -18,9 +21,11 @@ class CorruptSignaturePayloadException(
 /**
  * [SignatureStore] backed by Active Objects, with optional Bandana read fallback.
  *
- * The lambda constructor is for unit tests (in-memory map). Production uses [ActiveObjects].
+ * Production is a local Spring bean. The test-only factory keeps the persistence behavior
+ * independently testable without requiring an Active Objects container.
  */
-class AoSignatureStore internal constructor(
+@ConfluenceComponent
+class AoSignatureStore private constructor(
     private val findInAo: (String) -> Signature2?,
     private val upsertAo: (String, Signature2) -> Unit,
     private val bandanaFallback: BandanaFallback? = null,
@@ -28,9 +33,13 @@ class AoSignatureStore internal constructor(
 
     /**
      * @param ao plugin-scoped Active Objects
-     * @param bandanaFallback C10 Bandana reads; `null` on Confluence 11
+     * @param bandanaFallback C10 Bandana reads
      */
-    constructor(ao: ActiveObjects, bandanaFallback: BandanaFallback? = null) : this(
+    @Autowired
+    constructor(
+        @ComponentImport ao: ActiveObjects,
+        bandanaFallback: BandanaFallback? = null,
+    ) : this(
         findInAo = { key -> findEntity(ao, key) },
         upsertAo = { key, sig -> upsertEntity(ao, key, sig) },
         bandanaFallback = bandanaFallback,
@@ -80,6 +89,12 @@ class AoSignatureStore internal constructor(
         private const val COLUMN_SIGNATURE_KEY = "SIGNATURE_KEY"
         private const val COLUMN_PAGE_ID = "PAGE_ID"
         private const val COLUMN_PAYLOAD = "PAYLOAD"
+
+        internal fun forTesting(
+            findInAo: (String) -> Signature2?,
+            upsertAo: (String, Signature2) -> Unit,
+            bandanaFallback: BandanaFallback? = null,
+        ): AoSignatureStore = AoSignatureStore(findInAo, upsertAo, bandanaFallback)
 
         /**
          * @param ao plugin-scoped Active Objects

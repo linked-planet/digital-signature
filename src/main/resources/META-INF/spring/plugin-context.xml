@@ -2,13 +2,11 @@
 <beans
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xmlns="http://www.springframework.org/schema/beans"
-        xmlns:context="http://www.springframework.org/schema/context"
+        xmlns:atlassian-scanner="http://www.atlassian.com/schema/atlassian-scanner/2"
         xsi:schemaLocation="
             http://www.springframework.org/schema/beans
             http://www.springframework.org/schema/beans/spring-beans.xsd
-            http://www.springframework.org/schema/context
-            http://www.springframework.org/schema/context/spring-context.xsd">
-    <!-- ... the rest of the configuration file -->
-    <context:annotation-config/>
-    <bean class="com.baloise.confluence.digitalsignature.PluginConfig"/>
+            http://www.atlassian.com/schema/atlassian-scanner/2
+            http://www.atlassian.com/schema/atlassian-scanner/2/atlassian-scanner.xsd">
+    <atlassian-scanner:scan-indexes/>
 </beans>
