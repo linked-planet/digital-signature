@@ -60,7 +60,7 @@ Local Confluence runs via Docker (`local-env/`). Build/deploy is driven by [`.ju
 
 ### Prerequisites
 
-- JDK **21**, Maven 3.8+ / [`mvnd`](https://github.com/apache/maven-mvnd), [`just`](https://github.com/casey/just), Docker
+- JDK **21**, Maven 3.9.6+ / [`mvnd`](https://github.com/apache/maven-mvnd), [`just`](https://github.com/casey/just), Docker
 - Confluence DC license available via `gopass`/`pass` at `lpd/linked-planet/atlassian/license/dc/confluence`, **or** export `CONFLUENCE_LICENSE` yourself
 - Optional: `nix develop` (flake) — pulls JDK/just/mvnd/maven and sets `CONFLUENCE_VERSION` + `CONFLUENCE_LICENSE` in the shell
 

@@ -78,7 +78,7 @@ internal class SignatureStoreTest {
         val signature = Signature2(1, "test", "title")
         val ao = mutableMapOf(signature.key to "not-valid-json{")
         val fallback = CountingFallback(mapOf(signature.key to signature.serialize()))
-        val store = AoSignatureStore(
+        val store = AoSignatureStore.forTesting(
             findInAo = { key ->
                 ao[key]?.let { AoSignatureStore.parseAoPayload(key, it) }
             },
@@ -95,7 +95,7 @@ internal class SignatureStoreTest {
     fun get_corruptAo_noBandana_failsClosed() {
         val key = "signature.corrupt"
         val ao = mutableMapOf(key to "not-valid-json{")
-        val store = AoSignatureStore(
+        val store = AoSignatureStore.forTesting(
             findInAo = { k ->
                 ao[k]?.let { AoSignatureStore.parseAoPayload(k, it) }
             },
@@ -135,7 +135,7 @@ internal class SignatureStoreTest {
 
     private fun mapStore(fallback: BandanaFallback? = null): AoSignatureStore {
         val ao = mutableMapOf<String, String>()
-        return AoSignatureStore(
+        return AoSignatureStore.forTesting(
             findInAo = { key ->
                 ao[key]?.let { AoSignatureStore.parseAoPayload(key, it) }
             },

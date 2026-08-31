@@ -2,6 +2,8 @@ package com.baloise.confluence.digitalsignature.ao
 
 import com.atlassian.bandana.BandanaManager
 import com.atlassian.confluence.setup.bandana.ConfluenceBandanaContext
+import com.atlassian.plugin.spring.scanner.annotation.component.ConfluenceComponent
+import com.atlassian.plugin.spring.scanner.annotation.imports.ComponentImport
 
 /**
  * Read-only Bandana access for C10 migration. Delete this type (and [C10BandanaFallback]) when
@@ -23,7 +25,10 @@ interface BandanaFallback {
 /**
  * [BandanaManager] adapter limited to Confluence global Bandana. Reads only (`getValue` / `getKeys`).
  */
-class C10BandanaFallback(private val bandanaManager: BandanaManager) : BandanaFallback {
+@ConfluenceComponent
+class C10BandanaFallback(
+    @param:ComponentImport private val bandanaManager: BandanaManager,
+) : BandanaFallback {
     /**
      * @param key Bandana key under global context
      * @return stored value, or `null`

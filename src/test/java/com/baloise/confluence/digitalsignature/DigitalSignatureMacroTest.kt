@@ -11,14 +11,13 @@ internal class DigitalSignatureMacroTest {
 
     @Test
     fun mailtoLong(): Unit {
-        val macro = DigitalSignatureMacro()
         val profiles: MutableList<UserProfile> = ArrayList()
         val profile = buildUserProfile("Heinz Meier", "heinz.meier@meier.com")
         for (i in 0..19) {
             profiles.add(profile)
         }
 
-        val mailto = macro.getMailto(profiles, "Subject", true, null)
+        val mailto = MailtoBuilder.build(profiles, "Subject", true, null, "test")
 
         Assertions.assertEquals(
             "mailto:heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com,heinz.meier@meier.com?Subject=Subject",
@@ -28,15 +27,13 @@ internal class DigitalSignatureMacroTest {
 
     @Test
     fun mailtoVeryLong(): Unit {
-        val macro =
-            DigitalSignatureMacro()
         val profiles: MutableList<UserProfile> = ArrayList()
         val profile = buildUserProfile("Heinz Meier", "heinz.meier@meier.com")
         for (i in 0..199) {
             profiles.add(profile)
         }
 
-        val mailto = macro.getMailto(profiles, "Subject", true, signature, "nirvana")
+        val mailto = MailtoBuilder.build(profiles, "Subject", true, signature, "nirvana")
 
         Assertions.assertEquals(
             "nirvana/rest/signature/1.0/emails?key=signature.3224a4d6bba68cd0ece9b64252f8bf5677e24cf6b7c5f543e3176d419d34d517&signed=true",
@@ -46,12 +43,11 @@ internal class DigitalSignatureMacroTest {
 
     @Test
     fun mailtoShort(): Unit {
-        val macro = DigitalSignatureMacro()
         val profiles: MutableList<UserProfile> = ArrayList()
         val profile = buildUserProfile("Heinz Meier", "heinz.meier@meier.com")
         profiles.add(profile)
 
-        val mailto = macro.getMailto(profiles, "Subject", true, null)
+        val mailto = MailtoBuilder.build(profiles, "Subject", true, null, "test")
 
         Assertions.assertEquals(
             "mailto:Heinz Meier<heinz.meier@meier.com>?Subject=Subject",

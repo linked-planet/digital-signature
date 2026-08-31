@@ -21,6 +21,7 @@
         <amps.version>9.12.6</amps.version>
         <plugin.testrunner.version>2.0.18</plugin.testrunner.version>
         <junit.version>6.1.2</junit.version>
+        <atlassian.spring.scanner.version>6.0.2</atlassian.spring.scanner.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -170,9 +171,10 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.atlassian.plugins</groupId>
-            <artifactId>atlassian-plugins-osgi-javaconfig</artifactId>
-            <version>0.6.1</version>
+            <groupId>com.atlassian.plugin</groupId>
+            <artifactId>atlassian-spring-scanner-annotation</artifactId>
+            <version>${atlassian.spring.scanner.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
@@ -354,6 +356,21 @@
                 </executions>
             </plugin>
 
+            <!-- SPRING SCANNER -->
+            <plugin>
+                <groupId>com.atlassian.plugin</groupId>
+                <artifactId>atlassian-spring-scanner-maven-plugin</artifactId>
+                <version>${atlassian.spring.scanner.version}</version>
+                <executions>
+                    <execution>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>atlassian-spring-scanner</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- CONFLUENCE -->
             <plugin>
                 <groupId>com.atlassian.maven.plugins</groupId>
@@ -374,8 +391,6 @@
                         <Export-Package>com.baloise.confluence.digitalsignature.api</Export-Package>
                         <!-- Add package import here -->
                         <Import-Package>
-                            org.springframework.osgi.*;resolution:="optional",
-                            org.eclipse.gemini.blueprint.*;resolution:="optional",
                             *;version="0";resolution:=optional
                         </Import-Package>
                         <!-- Ensure plugin is spring powered -->
