@@ -65,7 +65,7 @@ restart: down && up
 reset-env: down
     #!/usr/bin/env bash
     set -euo pipefail
-    rm -rf ./local-env/confluence-home ./local-env/postgres-home ./local-env/confdb.dump
+    sudo rm -rf ./local-env/confluence-home ./local-env/postgres-home ./local-env/confdb.dump
     echo "Wiped local-env homes. Run: just up"
 
 # Snapshot confluence-home + pg_dump into local-env/local-env-homes.zip (needs sudo for confluence-home)
