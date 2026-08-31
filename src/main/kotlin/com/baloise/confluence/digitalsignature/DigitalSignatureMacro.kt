@@ -1,6 +1,5 @@
 package com.baloise.confluence.digitalsignature
 
-import com.atlassian.bandana.BandanaManager
 import com.atlassian.confluence.api.model.Expansion
 import com.atlassian.confluence.api.model.content.ContentType
 import com.atlassian.confluence.api.model.content.id.ContentId
@@ -18,43 +17,28 @@ import com.atlassian.confluence.renderer.radeox.macros.MacroUtils
 import com.atlassian.confluence.security.ContentPermission
 import com.atlassian.confluence.security.Permission
 import com.atlassian.confluence.security.PermissionManager
-import com.atlassian.confluence.setup.bandana.ConfluenceBandanaContext
 import com.atlassian.confluence.user.AuthenticatedUserThreadLocal
 import com.atlassian.confluence.user.UserAccessor
-import com.atlassian.plugins.osgi.javaconfig.OsgiServices.importOsgiService
+import com.atlassian.plugin.spring.scanner.annotation.imports.ComponentImport
 import com.atlassian.sal.api.message.I18nResolver
 import com.atlassian.sal.api.user.UserManager
-import com.atlassian.sal.api.user.UserProfile
 import com.atlassian.user.EntityException
 import com.atlassian.user.GroupManager
-import org.springframework.context.annotation.Bean
-import java.io.UnsupportedEncodingException
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
+import com.baloise.confluence.digitalsignature.ao.SignatureStore
 import java.util.*
-import java.util.stream.Collectors
 
-class DigitalSignatureMacro() : Macro {
-    private val bandanaManager: BandanaManager
-        @Bean get() = importOsgiService(BandanaManager::class.java)
-    private val userManager: UserManager
-        @Bean get() = importOsgiService(UserManager::class.java)
-    private val contextPathHolder: ContextPathHolder
-        @Bean get() = importOsgiService(ContextPathHolder::class.java)
-    private val pageManager: PageManager
-        @Bean get() = importOsgiService(PageManager::class.java)
-    private val permissionManager: PermissionManager
-        @Bean get() = importOsgiService(PermissionManager::class.java)
-    private val groupManager: GroupManager
-        @Bean get() = importOsgiService(GroupManager::class.java)
-    private val i18nResolver: I18nResolver
-        @Bean get() = importOsgiService(I18nResolver::class.java)
-    private val velocityHelperService: VelocityHelperService
-        @Bean get() = importOsgiService(VelocityHelperService::class.java)
-    private val contentService: ContentService
-        @Bean get() = importOsgiService(ContentService::class.java)
-    private val userAccessor: UserAccessor
-        @Bean get() = importOsgiService(UserAccessor::class.java)
+class DigitalSignatureMacro(
+    private val signatureStore: SignatureStore,
+    @param:ComponentImport private val userManager: UserManager,
+    @param:ComponentImport private val contextPathHolder: ContextPathHolder,
+    @param:ComponentImport private val pageManager: PageManager,
+    @param:ComponentImport private val permissionManager: PermissionManager,
+    @param:ComponentImport private val groupManager: GroupManager,
+    @param:ComponentImport private val i18nResolver: I18nResolver,
+    @param:ComponentImport private val velocityHelperService: VelocityHelperService,
+    @param:ComponentImport private val contentService: ContentService,
+    @param:ComponentImport private val userAccessor: UserAccessor,
+) : Macro {
 
     private val markdown = Markdown()
     private val contextHelper = ContextHelper()
@@ -138,8 +122,20 @@ class DigitalSignatureMacro() : Macro {
         context["profiles"] = contextHelper.union(signed, missing)
         context["signature"] = signature
         context["visibilityLimit"] = signature.visibilityLimit
-        context["mailtoSigned"] = getMailto(signed.values, signature.title, true, signature)
-        context["mailtoMissing"] = getMailto(missing.values, signature.title, false, signature)
+        context["mailtoSigned"] = MailtoBuilder.build(
+            signed.values,
+            signature.title,
+            true,
+            signature,
+            contextPathHolder.contextPath,
+        )
+        context["mailtoMissing"] = MailtoBuilder.build(
+            missing.values,
+            signature.title,
+            false,
+            signature,
+            contextPathHolder.contextPath,
+        )
         context["UUID"] = UUID.randomUUID().toString().replace("-", "")
         context["downloadURL"] =
             if (canExport) contextPathHolder.contextPath + REST_PATH + "/export?key=" + signature.key else null
@@ -307,40 +303,37 @@ class DigitalSignatureMacro() : Macro {
     }
 
     private fun sync(signature: Signature2, signers: Set<String>): Signature2 {
-        val value: Any? = bandanaManager.getValue(ConfluenceBandanaContext.GLOBAL_CONTEXT, signature.key)
-        val (sig, requiresUpdate) = Signature2.fromBandana(value)
-        if (requiresUpdate) {
-            Signature2.toBandana(bandanaManager, signature.key, sig!!)
-        }
-        sig?.also { loaded ->
+        val loaded = signatureStore.get(signature.key)
+        loaded?.also { loadedSig ->
             signature.signatures = loaded.signatures
             var save = false
 
-            if (loaded.notify != signature.notify) {
-                loaded.notify = signature.notify
+            if (loadedSig.notify != signature.notify) {
+                loadedSig.notify = signature.notify
                 save = true
             }
 
-            signature.missingSignatures = signers - loaded.signatures.keys
-            if (loaded.missingSignatures != signature.missingSignatures) {
-                loaded.missingSignatures = signature.missingSignatures
+            signature.missingSignatures = signers - loadedSig.signatures.keys
+            if (loadedSig.missingSignatures != signature.missingSignatures) {
+                loadedSig.missingSignatures = signature.missingSignatures
                 save = true
             }
 
-            if (loaded.maxSignatures != signature.maxSignatures) {
-                loaded.maxSignatures = signature.maxSignatures
+            if (loadedSig.maxSignatures != signature.maxSignatures) {
+                loadedSig.maxSignatures = signature.maxSignatures
                 save = true
             }
 
-            if (loaded.visibilityLimit != signature.visibilityLimit) {
-                loaded.visibilityLimit = signature.visibilityLimit
+            if (loadedSig.visibilityLimit != signature.visibilityLimit) {
+                loadedSig.visibilityLimit = signature.visibilityLimit
                 save = true
             }
 
             if (save) {
-                loaded.save(bandanaManager)
+                // Always put: notify/limits can change after the last signer; save() would no-op.
+                signatureStore.put(loadedSig.key, loadedSig)
             }
-        } ?: signature.apply { missingSignatures = signers }.save(bandanaManager)
+        } ?: signature.apply { missingSignatures = signers }.save(signatureStore)
         return signature
     }
 
@@ -352,50 +345,7 @@ class DigitalSignatureMacro() : Macro {
         return OutputType.BLOCK
     }
 
-    fun getMailto(
-        profiles: Collection<UserProfile>?,
-        subject: String,
-        signed: Boolean,
-        signature: Signature2?,
-        contextPathFixed: String? = null // for testing only as we're missing the osgi wiring
-    ): String? {
-        if (profiles.isNullOrEmpty()) return null
-        val profilesWithMail: List<UserProfile> =
-            profiles.stream().filter { profile: UserProfile -> contextHelper.hasEmail(profile) }.collect(
-                Collectors.toList()
-            )
-        val ret = StringBuilder("mailto:")
-        for (profile in profilesWithMail) {
-            if (ret.length > 7) ret.append(',')
-            ret.append(contextHelper.mailTo(profile))
-        }
-        ret.append("?Subject=").append(urlEncode(subject))
-        if (ret.length > MAX_MAILTO_CHARACTER_COUNT) {
-            ret.setLength(0)
-            ret.append("mailto:")
-            for (profile in profilesWithMail) {
-                if (ret.length > 7) ret.append(',')
-                ret.append(profile.email.trim { it <= ' ' })
-            }
-            ret.append("?Subject=").append(urlEncode(subject))
-        }
-        if (ret.length > MAX_MAILTO_CHARACTER_COUNT) {
-            val ctxPath = contextPathFixed ?: contextPathHolder.contextPath
-            return ctxPath + REST_PATH + "/emails?key=" + signature?.key + "&signed=" + signed
-        }
-        return ret.toString()
-    }
-
-    private fun urlEncode(string: String): String {
-        try {
-            return URLEncoder.encode(string, StandardCharsets.UTF_8.name())
-        } catch (e: UnsupportedEncodingException) {
-            throw IllegalStateException(e)
-        }
-    }
-
     companion object {
-        private const val MAX_MAILTO_CHARACTER_COUNT = 500
         private const val REST_PATH = "/rest/signature/1.0"
         private const val DISPLAY_PATH = "/display"
     }

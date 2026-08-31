@@ -71,6 +71,11 @@
         <type>com.baloise.confluence.digitalsignature.Signature</type>
     </xstream-security>
 
+    <ao key="ao-module">
+        <description>Signature persistence</description>
+        <entity>com.baloise.confluence.digitalsignature.ao.SignatureEntity</entity>
+    </ao>
+
     <rest key="com.baloise.confluence:digital-signature" path="/signature" version="1.0">
         <description>Provides signature services.</description>
     </rest>

@@ -1,16 +1,14 @@
 {
-  description = "Confluence-Multitenancy Dev-Envirionment";
+  description = "Digital Signature Dev-Environment";
 
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/release-25.05";
-  };
+  inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
 
   outputs = { self, nixpkgs }:
     let
-      javaVersion = 17;
+      javaVersion = 21;
 
       supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
-      forEachSupportedSystem = f: nixpkgs.lib.genAttrs supportedSystems (system: f {
+      forEachSystem = f: nixpkgs.lib.genAttrs supportedSystems (system: f {
         pkgs = import nixpkgs { inherit system; overlays = [ self.overlays.default ]; };
       });
     in
@@ -22,15 +20,20 @@
           kotlin = prev.kotlin.override { jre = jdk; };
         };
 
-      devShells = forEachSupportedSystem ({ pkgs }: {
+      devShells = forEachSystem ({ pkgs }: {
         default = pkgs.mkShell {
-
           packages = with pkgs; [
-            just
             jdk
+            just
             kotlin
             maven
+            mvnd
           ];
+
+          shellHook = ''
+            export CONFLUENCE_VERSION=$(just confluence-version)
+            export CONFLUENCE_LICENSE=$(just confluence-license)
+          '';
         };
       });
     };

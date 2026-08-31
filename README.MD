@@ -54,6 +54,81 @@ Digital-signature can be used on Confluence Data Center, however it is not yet o
 ![](./docs/img/report_email_export.png)
 ![](./docs/img/send_mail.png)
 
+## Build & Run
+
+Local Confluence runs via Docker (`local-env/`). Build/deploy is driven by [`.justfile`](.justfile).
+
+### Prerequisites
+
+- JDK **21**, Maven 3.9.6+ / [`mvnd`](https://github.com/apache/maven-mvnd), [`just`](https://github.com/casey/just), Docker
+- Confluence DC license available via `gopass`/`pass` at `lpd/linked-planet/atlassian/license/dc/confluence`, **or** export `CONFLUENCE_LICENSE` yourself
+- Optional: `nix develop` (flake) — pulls JDK/just/mvnd/maven and sets `CONFLUENCE_VERSION` + `CONFLUENCE_LICENSE` in the shell
+
+### Maven Toolchain
+
+`~/.m2/toolchains.xml`
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<toolchains>
+    <toolchain>
+        <type>jdk</type>
+        <provides>
+            <version>21</version>
+            <vendor>eclipse-temurin</vendor>
+        </provides>
+        <configuration>
+            <jdkHome>/usr/lib/jvm/temurin-21-jdk-amd64</jdkHome>
+        </configuration>
+    </toolchain>
+</toolchains>
+```
+
+### Local Confluence (Docker)
+
+`local-env/docker-compose.yml` runs Confluence + Postgres 16. State lives in `local-env/confluence-home` and `local-env/postgres-home` (gitignored).
+
+| Port | Service |
+|------|---------|
+| `8090` | Confluence HTTP |
+| `8091` | Confluence (synchrony / related) |
+| `5005` | JDWP (remote debug) |
+| `5432` | Postgres (`confdb` / `confdb` / `confdb`) |
+
+Env (compose / Dockerfile):
+
+| Variable | Purpose |
+|----------|---------|
+| `CONFLUENCE_VERSION` | Image tag (default `10.2.15`; `just confluence-version` reads `pom.xml`) |
+| `CONFLUENCE_LICENSE` | DC license key injected as `ATL_LICENSE_KEY` |
+| `FRONTEND_DEV_MODE` | Optional; default `false` |
+
+```bash
+# from repo root — with license + version in the environment (nix develop does this)
+just up          # build image, start Confluence + Postgres (force-recreate)
+just logs        # follow Confluence logs
+# wait until healthcheck is green → http://localhost:8090
+
+just build       # package plugin (mvnd, tests skipped)
+just deploy      # UPM upload → http://localhost:8090 (admin/admin)
+just redeploy    # build + deploy
+
+just down        # stop (120s grace) then compose down
+just restart     # down && up
+```
+
+Interactive menu: `just` / `just --choose`.
+
+#### Homes snapshot
+
+```bash
+just save-home   # zip confluence-home + postgres-home → local-env/local-env-homes.zip (sudo; skips logs/tmp/plugin jars)
+just load-home   # restore from that zip (sudo; chmod 777 homes)
+just reset-env   # wipe homes — re-run setup wizard after `just up`
+```
+
+Attach a remote debugger to `localhost:5005` (suspend=n).
+
 ## Contribute
 Keep it simple: every contribution is welcome. Either if you report an issue, help on solving one, or contribute to the
 solution by adding a Pull Request.

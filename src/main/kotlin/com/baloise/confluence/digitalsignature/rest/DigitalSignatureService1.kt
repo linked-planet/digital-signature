@@ -1,6 +1,5 @@
 package com.baloise.confluence.digitalsignature.rest
 
-import com.atlassian.bandana.BandanaManager
 import com.atlassian.confluence.api.model.Expansion
 import com.atlassian.confluence.api.model.content.id.ContentId
 import com.atlassian.confluence.api.model.pagination.PageResponse
@@ -15,7 +14,6 @@ import com.atlassian.confluence.api.service.permissions.ContentRestrictionServic
 import com.atlassian.confluence.pages.PageManager
 import com.atlassian.confluence.plugin.services.VelocityHelperService
 import com.atlassian.confluence.renderer.radeox.macros.MacroUtils
-import com.atlassian.confluence.setup.bandana.ConfluenceBandanaContext
 import com.atlassian.confluence.setup.settings.GlobalSettingsManager
 import com.atlassian.confluence.user.AuthenticatedUserThreadLocal
 import com.atlassian.confluence.user.ConfluenceUser
@@ -24,7 +22,8 @@ import com.atlassian.mail.MailException
 import com.atlassian.mail.server.MailServerManager
 import com.atlassian.mywork.model.NotificationBuilder
 import com.atlassian.mywork.service.LocalNotificationService
-import com.atlassian.plugins.osgi.javaconfig.OsgiServices.importOsgiService
+import com.atlassian.plugin.spring.scanner.annotation.component.ConfluenceComponent
+import com.atlassian.plugin.spring.scanner.annotation.imports.ComponentImport
 import com.atlassian.sal.api.message.I18nResolver
 import com.atlassian.sal.api.user.UserManager
 import com.atlassian.sal.api.user.UserProfile
@@ -32,45 +31,36 @@ import com.atlassian.velocity.htmlsafe.HtmlSafe
 import com.baloise.confluence.digitalsignature.ContextHelper
 import com.baloise.confluence.digitalsignature.Markdown
 import com.baloise.confluence.digitalsignature.Signature2
+import com.baloise.confluence.digitalsignature.ao.SignatureStore
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.context.annotation.Bean
 import java.net.URI
 import java.text.MessageFormat
 import java.util.*
 import java.util.concurrent.ExecutionException
 import java.util.stream.Collectors
-import javax.ws.rs.*
-import javax.ws.rs.core.Context
-import javax.ws.rs.core.MediaType
-import javax.ws.rs.core.Response
-import javax.ws.rs.core.UriInfo
+import jakarta.ws.rs.*
+import jakarta.ws.rs.core.Context
+import jakarta.ws.rs.core.MediaType
+import jakarta.ws.rs.core.Response
+import jakarta.ws.rs.core.UriInfo
 
 @Path("/")
 @Consumes(MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON)
-
-class DigitalSignatureService() {
-    private val bandanaManager: BandanaManager
-        @Bean get() = importOsgiService(BandanaManager::class.java)
-    private val settingsManager: GlobalSettingsManager
-        @Bean get() = importOsgiService(GlobalSettingsManager::class.java)
-    private val userManager: UserManager
-        @Bean get() = importOsgiService(UserManager::class.java)
-    private val notificationService: LocalNotificationService
-        @Bean get() = importOsgiService(LocalNotificationService::class.java)
-    private val mailServerManager: MailServerManager
-        @Bean get() = importOsgiService(MailServerManager::class.java)
-    private val pageManager: PageManager
-        @Bean get() = importOsgiService(PageManager::class.java)
-    private val i18nResolver: I18nResolver
-        @Bean get() = importOsgiService(I18nResolver::class.java)
-    private val velocityHelperService: VelocityHelperService
-        @Bean get() = importOsgiService(VelocityHelperService::class.java)
-    private val contentService: ContentService
-        @Bean get() = importOsgiService(ContentService::class.java)
-    private val contentRestrictionService: ContentRestrictionService
-        @Bean get() = importOsgiService(ContentRestrictionService::class.java)
+@ConfluenceComponent
+class DigitalSignatureService(
+    private val signatureStore: SignatureStore,
+    @param:ComponentImport private val settingsManager: GlobalSettingsManager,
+    @param:ComponentImport private val userManager: UserManager,
+    @param:ComponentImport private val notificationService: LocalNotificationService,
+    @param:ComponentImport private val mailServerManager: MailServerManager,
+    @param:ComponentImport private val pageManager: PageManager,
+    @param:ComponentImport private val i18nResolver: I18nResolver,
+    @param:ComponentImport private val velocityHelperService: VelocityHelperService,
+    @param:ComponentImport private val contentService: ContentService,
+    @param:ComponentImport private val contentRestrictionService: ContentRestrictionService,
+) {
 
     private val contextHelper = ContextHelper()
 
@@ -83,9 +73,18 @@ class DigitalSignatureService() {
         @QueryParam("key") key: String?
     ): Response {
         val confluenceUser = AuthenticatedUserThreadLocal.get()
-        val userName = confluenceUser.name
+    		?: return Response.status(Response.Status.UNAUTHORIZED).build()
+        
+		val userName = confluenceUser.name
+		if (userName.isNullOrBlank()) {
+			log.error("A user name is required to call this method.")
+			return Response.noContent().build()
+		}
 
-        val signature = getSignatureFromBandana(key)
+        val signature = getSignature(key) ?: run {
+			log.error("A signature is required to call this method.")
+			return Response.noContent().build()
+		}
 
         if (signature == null || userName == null || userName.trim { it <= ' ' }.isEmpty()) {
             log.error(
@@ -96,7 +95,7 @@ class DigitalSignatureService() {
         }
 
         if (!signature.sign(userName)) {
-            Response.status(Response.Status.BAD_REQUEST)
+            return Response.status(Response.Status.BAD_REQUEST)
                 .entity(
                     i18nResolver.getText(
                         "com.baloise.confluence.digital-signature.signature.service.error.badUser",
@@ -108,7 +107,7 @@ class DigitalSignatureService() {
                 .build()
         }
 
-        Signature2.toBandana(bandanaManager, key, signature)
+        signatureStore.put(signature.key, signature)
         val baseUrl = settingsManager.globalSettings.baseUrl
         for (notifiedUser in signature.notify) {
             notify(notifiedUser, confluenceUser, signature, baseUrl)
@@ -213,7 +212,7 @@ class DigitalSignatureService() {
     @Produces("text/html; charset=UTF-8")
     @HtmlSafe
     fun export(@QueryParam("key") key: String?): String {
-        val signature: Signature2 = getSignatureFromBandana(key) ?: log.error(
+        val signature: Signature2 = getSignature(key) ?: log.error(
             "A signature is required to call this method.",
             NullPointerException("signature")
         ).run { return "ERROR: A signature is required to call this method." }
@@ -243,7 +242,7 @@ class DigitalSignatureService() {
         @QueryParam("emailOnly") emailOnly: Boolean,
         @Context uriInfo: UriInfo
     ): Response {
-        val signature: Signature2 = getSignatureFromBandana(key) ?: log.error(
+        val signature: Signature2 = getSignature(key) ?: log.error(
             "A signature is required to call this method.",
             NullPointerException("signature")
         ).run {
@@ -279,14 +278,11 @@ class DigitalSignatureService() {
         return Response.ok(velocityHelperService.getRenderedTemplate("templates/email.vm", context)).build()
     }
 
-    private fun getSignatureFromBandana(key: String?): Signature2? {
-        val value: Any? = bandanaManager.getValue(ConfluenceBandanaContext.GLOBAL_CONTEXT, key)
-        val (signature, requiresUpdate) = Signature2.fromBandana(value)
-        if (requiresUpdate) {
-            Signature2.toBandana(bandanaManager, key, signature!!)
-        }
-        return signature
-    }
+    /**
+     * @param key signature key
+     * @return stored signature, or `null` if the key is null or not found
+     */
+    private fun getSignature(key: String?): Signature2? = key?.let { signatureStore.get(it) }
 
     companion object {
         private val log: Logger = LoggerFactory.getLogger(DigitalSignatureService::class.java)
