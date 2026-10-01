@@ -1,12 +1,5 @@
 package com.baloise.confluence.digitalsignature.upgrade
 
-import com.atlassian.confluence.content.render.xhtml.definition.PlainTextMacroBody
-import com.atlassian.confluence.pages.Page
-import com.atlassian.confluence.pages.PageManager
-import com.atlassian.confluence.xhtml.api.MacroDefinition
-import com.atlassian.confluence.xhtml.api.MacroDefinitionHandler
-import com.atlassian.confluence.xhtml.api.XhtmlContent
-import java.lang.reflect.Proxy
 import com.baloise.confluence.digitalsignature.Signature
 import com.baloise.confluence.digitalsignature.Signature2
 import com.baloise.confluence.digitalsignature.ao.BandanaFallback
@@ -114,81 +107,32 @@ internal class BandanaToAoUpgradeTaskTest {
     }
 
     @Test
-    fun doUpgrade_skipsObsoleteInvalidNotifyAndMigratesCurrentMacro() {
-        val obsolete = Signature2(1, "old-body", "title")
-        val current = Signature2(1, "new-body", "title")
-        val badJson = obsolete.serialize().replace("\"notify\":[]", "\"notify\":\"user\"")
+    fun doUpgrade_migratesOldAndCurrentSignaturesWithStringNotify() {
+        val old = Signature2(1, "old-body", "old-title")
+        val current = Signature2(1, "new-body", "new-title").withNotified(setOf("user"))
+        val oldJson = old.serialize().replace("\"notify\":[]", "\"notify\":\"user\"")
         val store = InMemorySignatureStore()
-        val bandana = MapBandana(obsolete.key to badJson, current.key to current.serialize())
+        val bandana = MapBandana(old.key to oldJson, current.key to current.serialize())
 
-        Assertions.assertTrue(task(store, bandana, listOf(current)).doUpgrade().isEmpty())
-        Assertions.assertNull(store.getFromAo(obsolete.key))
-        Assertions.assertEquals(current, store.getFromAo(current.key))
-
-        val currentStore = InMemorySignatureStore()
-        Assertions.assertTrue(task(currentStore, MapBandana(obsolete.key to badJson), listOf(obsolete)).doUpgrade().isEmpty())
-        val migrated = currentStore.getFromAo(obsolete.key)!!
-        Assertions.assertEquals(obsolete.key, migrated.key)
-        Assertions.assertTrue(migrated.notify.isEmpty())
+        Assertions.assertTrue(task(store, bandana).doUpgrade().isEmpty())
+        Assertions.assertEquals(old.serialize(), store.getFromAo(old.key)!!.serialize())
+        Assertions.assertEquals(current.serialize(), store.getFromAo(current.key)!!.serialize())
+        Assertions.assertEquals(2, store.putCount)
     }
 
     @Test
-    fun doUpgrade_skipsRemovedMacrosMissingPagesAndChangedTitles() {
-        val old = Signature2(1, "body", "old-title")
-        val renamed = Signature2(1, "body", "new-title")
-        for (current in listOf(emptyList(), listOf(renamed))) {
-            val store = InMemorySignatureStore()
-            Assertions.assertTrue(task(store, MapBandana(old.key to old.serialize()), current).doUpgrade().isEmpty())
-            Assertions.assertNull(store.getFromAo(old.key))
-        }
-        val store = InMemorySignatureStore()
-        Assertions.assertTrue(task(store, MapBandana(old.key to old.serialize()), listOf(renamed), missingPage = true).doUpgrade().isEmpty())
-        Assertions.assertNull(store.getFromAo(old.key))
-    }
-
-    @Test
-    fun doUpgrade_pageParsingFailureStillFailsMigration() {
+    fun doUpgrade_malformedJsonStillFailsMigration() {
         val sig = Signature2(1, "body", "title")
         val store = InMemorySignatureStore()
-        assertThrows<IllegalStateException> {
-            task(store, MapBandana(sig.key to sig.serialize()), parsingFailure = true).doUpgrade()
+        val ex = assertThrows<IllegalStateException> {
+            task(store, MapBandana(sig.key to "{invalid")).doUpgrade()
         }
+        Assertions.assertTrue(ex.message!!.contains("failed=1"))
         Assertions.assertNull(store.getFromAo(sig.key))
     }
 
-    private fun task(
-        store: SignatureStore,
-        bandana: BandanaFallback,
-        current: List<Signature2> = bandana.keys().filter { it.startsWith("signature.") }
-            .mapNotNull { Signature2.fromPersistedValue(bandana.getValue(it)).first },
-        missingPage: Boolean = false,
-        parsingFailure: Boolean = false,
-    ): BandanaToAoUpgradeTask {
-        val pageManager = Proxy.newProxyInstance(
-            PageManager::class.java.classLoader, arrayOf(PageManager::class.java),
-        ) { _, method, args ->
-            check(method.name == "getPage")
-            if (missingPage) null else Page().apply {
-                id = args!![0] as Long
-                bodyAsString = "storage:$id"
-            }
-        } as PageManager
-        val xhtmlContent = Proxy.newProxyInstance(
-            XhtmlContent::class.java.classLoader, arrayOf(XhtmlContent::class.java),
-        ) { _, method, args ->
-            check(method.name == "handleMacroDefinitions")
-            if (parsingFailure) error("Cannot parse page storage")
-            val pageId = (args!![0] as String).removePrefix("storage:").toLong()
-            val handler = args[2] as MacroDefinitionHandler
-            for (sig in current.filter { it.pageId == pageId }) {
-                handler.handle(MacroDefinition.builder("signature")
-                    .withMacroBody(PlainTextMacroBody(sig.body))
-                    .withParameter("title", sig.title).build())
-            }
-            null
-        } as XhtmlContent
-        return BandanaToAoUpgradeTask(store, bandana, pageManager, xhtmlContent)
-    }
+    private fun task(store: SignatureStore, bandana: BandanaFallback): BandanaToAoUpgradeTask =
+        BandanaToAoUpgradeTask(store, bandana)
 
     private class MapBandana(vararg entries: Pair<String, Any?>) : BandanaFallback {
         private val values = mapOf(*entries)
