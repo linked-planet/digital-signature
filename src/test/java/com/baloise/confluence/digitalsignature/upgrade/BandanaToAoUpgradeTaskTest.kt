@@ -114,7 +114,7 @@ internal class BandanaToAoUpgradeTaskTest {
     }
 
     @Test
-    fun doUpgrade_skipsObsoleteInvalidNotifyButFailsForCurrentMacro() {
+    fun doUpgrade_skipsObsoleteInvalidNotifyAndMigratesCurrentMacro() {
         val obsolete = Signature2(1, "old-body", "title")
         val current = Signature2(1, "new-body", "title")
         val badJson = obsolete.serialize().replace("\"notify\":[]", "\"notify\":\"user\"")
@@ -125,10 +125,11 @@ internal class BandanaToAoUpgradeTaskTest {
         Assertions.assertNull(store.getFromAo(obsolete.key))
         Assertions.assertEquals(current, store.getFromAo(current.key))
 
-        val ex = assertThrows<IllegalStateException> {
-            task(InMemorySignatureStore(), MapBandana(obsolete.key to badJson), listOf(obsolete)).doUpgrade()
-        }
-        Assertions.assertTrue(ex.message!!.contains("failed=1"))
+        val currentStore = InMemorySignatureStore()
+        Assertions.assertTrue(task(currentStore, MapBandana(obsolete.key to badJson), listOf(obsolete)).doUpgrade().isEmpty())
+        val migrated = currentStore.getFromAo(obsolete.key)!!
+        Assertions.assertEquals(obsolete.key, migrated.key)
+        Assertions.assertTrue(migrated.notify.isEmpty())
     }
 
     @Test

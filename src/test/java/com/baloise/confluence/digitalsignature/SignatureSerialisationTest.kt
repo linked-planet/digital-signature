@@ -14,6 +14,16 @@ import java.util.*
 
 internal class SignatureSerialisationTest {
     @Test
+    fun deserialize_discardsStringNotifyAndPreservesOtherFields() {
+        val restored = deserialize(SIG_JSON.replace("\"notify\":[\"notify1\"]", "\"notify\":\"notify1\""))!!
+        val expected = deserialize(SIG_JSON)!!.apply { notify = emptySet() }
+
+        Assertions.assertEquals(expected.serialize(), restored.serialize())
+        Assertions.assertTrue(restored.serialize().contains("\"notify\":[]"))
+        Assertions.assertEquals(setOf("notify1"), deserialize(SIG_JSON)!!.notify)
+    }
+
+    @Test
     @Throws(IOException::class, ClassNotFoundException::class)
     fun deserialize() {
         val signatureKey = "signature.a077cdcc5bfcf275fe447ae2c609c1c361331b4e90cb85909582e0d824cbc5b3"
