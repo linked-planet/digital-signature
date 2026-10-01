@@ -21,7 +21,7 @@ internal class BandanaToAoUpgradeTaskTest {
             jsonSig.key to jsonSig.serialize(),
             legacy.key!! to legacy,
         )
-        val task = task(store, bandana)
+        val task = BandanaToAoUpgradeTask(store, bandana)
 
         val errors = task.doUpgrade()
 
@@ -39,7 +39,7 @@ internal class BandanaToAoUpgradeTaskTest {
         val mutated = Signature2(1, "body", "title")
         mutated.title = "changed-in-bandana"
         val bandana = MapBandana(sig.key to mutated.serialize())
-        val task = task(store, bandana)
+        val task = BandanaToAoUpgradeTask(store, bandana)
 
         task.doUpgrade()
 
@@ -50,7 +50,7 @@ internal class BandanaToAoUpgradeTaskTest {
     fun doUpgrade_failedDeserialize_throwsSoSalCanRetry() {
         val store = InMemorySignatureStore()
         val bandana = MapBandana("signature.bad" to 42)
-        val task = task(store, bandana)
+        val task = BandanaToAoUpgradeTask(store, bandana)
 
         val ex = assertThrows<IllegalStateException> { task.doUpgrade() }
 
@@ -66,7 +66,7 @@ internal class BandanaToAoUpgradeTaskTest {
             good.key to good.serialize(),
             "signature.bad" to 42,
         )
-        val task = task(store, bandana)
+        val task = BandanaToAoUpgradeTask(store, bandana)
 
         assertThrows<IllegalStateException> { task.doUpgrade() }
 
@@ -79,7 +79,7 @@ internal class BandanaToAoUpgradeTaskTest {
         val sig = Signature2(1, "body", "title")
         val store = InMemorySignatureStore()
         val bandana = MapBandana(sig.key to sig.serialize())
-        val task = task(store, bandana)
+        val task = BandanaToAoUpgradeTask(store, bandana)
 
         Assertions.assertTrue(task.doUpgrade().isEmpty())
         Assertions.assertTrue(task.doUpgrade().isEmpty())
@@ -93,7 +93,7 @@ internal class BandanaToAoUpgradeTaskTest {
         val store = InMemorySignatureStore()
         store.putRaw(sig.key, "not-valid-json{")
         val bandana = MapBandana(sig.key to sig.serialize())
-        val task = task(store, bandana)
+        val task = BandanaToAoUpgradeTask(store, bandana)
 
         Assertions.assertTrue(task.doUpgrade().isEmpty())
         Assertions.assertEquals(sig, store.getFromAo(sig.key))
@@ -101,7 +101,7 @@ internal class BandanaToAoUpgradeTaskTest {
 
     @Test
     fun pluginKeyAndBuildNumber() {
-        val task = task(InMemorySignatureStore(), MapBandana())
+        val task = BandanaToAoUpgradeTask(InMemorySignatureStore(), MapBandana())
         Assertions.assertEquals("com.baloise.confluence.digital-signature", task.pluginKey)
         Assertions.assertEquals(1, task.buildNumber)
     }
@@ -114,7 +114,7 @@ internal class BandanaToAoUpgradeTaskTest {
         val store = InMemorySignatureStore()
         val bandana = MapBandana(old.key to oldJson, current.key to current.serialize())
 
-        Assertions.assertTrue(task(store, bandana).doUpgrade().isEmpty())
+        Assertions.assertTrue(BandanaToAoUpgradeTask(store, bandana).doUpgrade().isEmpty())
         Assertions.assertEquals(old.serialize(), store.getFromAo(old.key)!!.serialize())
         Assertions.assertEquals(current.serialize(), store.getFromAo(current.key)!!.serialize())
         Assertions.assertEquals(2, store.putCount)
@@ -125,14 +125,11 @@ internal class BandanaToAoUpgradeTaskTest {
         val sig = Signature2(1, "body", "title")
         val store = InMemorySignatureStore()
         val ex = assertThrows<IllegalStateException> {
-            task(store, MapBandana(sig.key to "{invalid")).doUpgrade()
+            BandanaToAoUpgradeTask(store, MapBandana(sig.key to "{invalid")).doUpgrade()
         }
         Assertions.assertTrue(ex.message!!.contains("failed=1"))
         Assertions.assertNull(store.getFromAo(sig.key))
     }
-
-    private fun task(store: SignatureStore, bandana: BandanaFallback): BandanaToAoUpgradeTask =
-        BandanaToAoUpgradeTask(store, bandana)
 
     private class MapBandana(vararg entries: Pair<String, Any?>) : BandanaFallback {
         private val values = mapOf(*entries)
