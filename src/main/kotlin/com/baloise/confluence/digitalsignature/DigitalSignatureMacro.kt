@@ -44,10 +44,7 @@ class DigitalSignatureMacro(
     private val contextHelper = ContextHelper()
 
     override fun execute(params: Map<String, String>, body: String?, conversionContext: ConversionContext): String {
-        if (body == null || body.length <= 10) {
-            return warning(i18nResolver.getText("com.baloise.confluence.digital-signature.signature.macro.warning.bodyToShort"))
-        }
-
+        val bodyText = body ?: ""
         val userGroups = getSet(params, "signerGroups")
         val petitionMode: Boolean = Signature2.isPetitionMode(userGroups)
         val signers = if (petitionMode) setOf("*") else contextHelper.union(
@@ -59,7 +56,7 @@ class DigitalSignatureMacro(
         )
         val entity = conversionContext.entity
         val signature = sync(
-            Signature2(entity!!.latestVersionId, body, params["title"] ?: "").withNotified(getSet(params, "notified"))
+            Signature2(entity!!.latestVersionId, bodyText, params["title"] ?: "").withNotified(getSet(params, "notified"))
                 .withMaxSignatures(getLong(params, "maxSignatures"))
                 .withVisibilityLimit(getLong(params, "visibilityLimit")), signers
         )
