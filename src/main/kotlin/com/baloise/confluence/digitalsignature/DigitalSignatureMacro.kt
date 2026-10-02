@@ -49,13 +49,17 @@ class DigitalSignatureMacro(
         val title = params["title"] ?: ""
         val entity = conversionContext.entity
         val pageId = entity!!.latestVersionId
+        val signatureKey = Signature2(pageId, bodyText, title).key
         if (isShortBodyRejected(
                 bodyText.length,
                 conversionContext.outputType,
-                signatureStore.get(Signature2(pageId, bodyText, title).key) != null
+                signatureStore.get(signatureKey) != null
             )
         ) {
             return warning(i18nResolver.getText("com.baloise.confluence.digital-signature.signature.macro.warning.bodyToShort"))
+        }
+        if (isDuplicateSignatureKey(conversionContext, signatureKey)) {
+            return warning(i18nResolver.getText("com.baloise.confluence.digital-signature.signature.macro.warning.duplicateBody"))
         }
 
         val userGroups = getSet(params, "signerGroups")
@@ -218,6 +222,13 @@ class DigitalSignatureMacro(
         return conversionContext.entity is Page
     }
 
+    private fun isDuplicateSignatureKey(conversionContext: ConversionContext, key: String): Boolean {
+        @Suppress("UNCHECKED_CAST")
+        val seen = conversionContext.getProperty(SEEN_SIGNATURE_KEYS) as? MutableSet<String>
+            ?: mutableSetOf<String>().also { conversionContext.setProperty(SEEN_SIGNATURE_KEYS, it) }
+        return !claimSignatureKey(seen, key)
+    }
+
     private fun warning(message: String): String {
         return """
 <div class="aui-message aui-message-warning">
@@ -357,12 +368,16 @@ class DigitalSignatureMacro(
     companion object {
         private const val REST_PATH = "/rest/signature/1.0"
         private const val DISPLAY_PATH = "/display"
+        private const val SEEN_SIGNATURE_KEYS = "com.baloise.confluence.digitalsignature.seenKeys"
         const val MIN_BODY_LENGTH = 10
 
         /** Reject short body unless legacy store hit outside editor preview. */
         fun isShortBodyRejected(bodyLength: Int, outputType: String, hasStoredSignature: Boolean): Boolean {
-            if (bodyLength > MIN_BODY_LENGTH) return false
+            if (bodyLength >= MIN_BODY_LENGTH) return false
             return outputType == ConversionContextOutputType.PREVIEW.value() || !hasStoredSignature
         }
+
+        /** @return true if key was newly claimed, false if already seen (duplicate). */
+        fun claimSignatureKey(seen: MutableSet<String>, key: String): Boolean = seen.add(key)
     }
 }

@@ -68,6 +68,14 @@ internal class DigitalSignatureMacroTest {
     }
 
     @Test
+    fun claimSignatureKeyDetectsDuplicates() {
+        val seen = mutableSetOf<String>()
+        assertTrue(DigitalSignatureMacro.claimSignatureKey(seen, "signature.abc"))
+        assertFalse(DigitalSignatureMacro.claimSignatureKey(seen, "signature.abc"))
+        assertTrue(DigitalSignatureMacro.claimSignatureKey(seen, "signature.def"))
+    }
+
+    @Test
     fun mailtoLong(): Unit {
         val profiles: MutableList<UserProfile> = ArrayList()
         val profile = buildUserProfile("Heinz Meier", "heinz.meier@meier.com")
