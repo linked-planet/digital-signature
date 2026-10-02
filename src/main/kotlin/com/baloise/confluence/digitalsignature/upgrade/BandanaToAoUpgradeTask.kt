@@ -11,7 +11,8 @@ import com.baloise.confluence.digitalsignature.ao.SignatureStore
 import org.apache.logging.log4j.LogManager
 
 /**
- * One-shot copy of global Bandana `signature.*` rows into Active Objects. Does not delete Bandana.
+ * Copies all global Bandana `signature.*` rows into AO, including historical signatures.
+ * Does not delete Bandana or inspect page versions.
  * Safe to run twice (rows already in AO are skipped).
  *
  * Throws if any key fails so SAL does not advance the plugin build number and the task can retry.
@@ -40,7 +41,8 @@ class BandanaToAoUpgradeTask(
     override fun getPluginKey(): String = PLUGIN_KEY
 
     /**
-     * Copies each `signature.*` Bandana value into AO. JSON strings and legacy XStream
+     * Copies `signature.*` Bandana values into AO.
+     * JSON strings and legacy XStream
      * [com.baloise.confluence.digitalsignature.Signature] beans are both accepted.
      *
      * @return empty on full success

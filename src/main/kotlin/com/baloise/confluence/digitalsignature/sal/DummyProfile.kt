@@ -4,6 +4,11 @@ import com.atlassian.sal.api.user.UserKey
 import com.atlassian.sal.api.user.UserProfile
 import java.net.URI
 
+/**
+ * Fallback when a deleted or disabled user's profile cannot be resolved. Keeps existing signatures
+ * visible under the stored username without null-pointer failures; empty email skips email notifications.
+ * Introduced for https://github.com/baloise/digital-signature/issues/27 to preserve approval audit trails.
+ */
 class DummyProfile(private val userKey: String) : UserProfile {
     override fun getUserKey(): UserKey {
         return UserKey(userKey)

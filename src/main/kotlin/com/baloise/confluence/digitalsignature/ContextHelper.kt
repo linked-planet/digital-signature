@@ -7,7 +7,8 @@ import java.util.*
 
 class ContextHelper {
     fun getOrderedSignatures(signature: Signature2): Any {
-        val ret: SortedSet<Map.Entry<String, Date>> = signature.signatures.entries.toSortedSet(
+        // Confluence's Velocity allowlist permits HashMap entries, not singleton-map entries.
+        val ret: SortedSet<Map.Entry<String, Date>> = HashMap(signature.signatures).entries.toSortedSet(
             Comparator<Map.Entry<String, Date>> { o1, o2 -> o1.value.compareTo(o2.value) }
                 .thenComparing { o1, o2 -> o1.key.compareTo(o2.key) }
         )
@@ -60,6 +61,6 @@ class ContextHelper {
     }
 
     fun hasEmail(profile: UserProfile?): Boolean {
-        return profile != null && profile.email != null && profile.email.trim { it <= ' ' }.isNotEmpty()
+        return profile?.email != null && profile.email.trim { it <= ' ' }.isNotEmpty()
     }
 }

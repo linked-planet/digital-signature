@@ -106,6 +106,31 @@ internal class BandanaToAoUpgradeTaskTest {
         Assertions.assertEquals(1, task.buildNumber)
     }
 
+    @Test
+    fun doUpgrade_migratesOldAndCurrentSignaturesWithStringNotify() {
+        val old = Signature2(1, "old-body", "old-title")
+        val current = Signature2(1, "new-body", "new-title").withNotified(setOf("user"))
+        val oldJson = old.serialize().replace("\"notify\":[]", "\"notify\":\"user\"")
+        val store = InMemorySignatureStore()
+        val bandana = MapBandana(old.key to oldJson, current.key to current.serialize())
+
+        Assertions.assertTrue(BandanaToAoUpgradeTask(store, bandana).doUpgrade().isEmpty())
+        Assertions.assertEquals(old.serialize(), store.getFromAo(old.key)!!.serialize())
+        Assertions.assertEquals(current.serialize(), store.getFromAo(current.key)!!.serialize())
+        Assertions.assertEquals(2, store.putCount)
+    }
+
+    @Test
+    fun doUpgrade_malformedJsonStillFailsMigration() {
+        val sig = Signature2(1, "body", "title")
+        val store = InMemorySignatureStore()
+        val ex = assertThrows<IllegalStateException> {
+            BandanaToAoUpgradeTask(store, MapBandana(sig.key to "{invalid")).doUpgrade()
+        }
+        Assertions.assertTrue(ex.message!!.contains("failed=1"))
+        Assertions.assertNull(store.getFromAo(sig.key))
+    }
+
     private class MapBandana(vararg entries: Pair<String, Any?>) : BandanaFallback {
         private val values = mapOf(*entries)
         override fun getValue(key: String): Any? = values[key]

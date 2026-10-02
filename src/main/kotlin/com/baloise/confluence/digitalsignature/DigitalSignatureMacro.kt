@@ -5,6 +5,7 @@ import com.atlassian.confluence.api.model.content.ContentType
 import com.atlassian.confluence.api.model.content.id.ContentId
 import com.atlassian.confluence.api.service.content.ContentService
 import com.atlassian.confluence.content.render.xhtml.ConversionContext
+import com.atlassian.confluence.content.render.xhtml.ConversionContextOutputType
 import com.atlassian.confluence.core.ContentEntityObject
 import com.atlassian.confluence.core.ContextPathHolder
 import com.atlassian.confluence.core.DefaultSaveContext
@@ -44,8 +45,21 @@ class DigitalSignatureMacro(
     private val contextHelper = ContextHelper()
 
     override fun execute(params: Map<String, String>, body: String?, conversionContext: ConversionContext): String {
-        if (body == null || body.length <= 10) {
+        val bodyText = body ?: ""
+        val title = params["title"] ?: ""
+        val entity = conversionContext.entity
+        val pageId = entity!!.latestVersionId
+        val signatureKey = Signature2(pageId, bodyText, title).key
+        if (isShortBodyRejected(
+                bodyText.length,
+                conversionContext.outputType,
+                signatureStore.get(signatureKey) != null
+            )
+        ) {
             return warning(i18nResolver.getText("com.baloise.confluence.digital-signature.signature.macro.warning.bodyToShort"))
+        }
+        if (isDuplicateSignatureKey(conversionContext, signatureKey)) {
+            return warning(i18nResolver.getText("com.baloise.confluence.digital-signature.signature.macro.warning.duplicateBody"))
         }
 
         val userGroups = getSet(params, "signerGroups")
@@ -57,9 +71,8 @@ class DigitalSignatureMacro(
                 ), conversionContext
             )
         )
-        val entity = conversionContext.entity
         val signature = sync(
-            Signature2(entity!!.latestVersionId, body, params["title"] ?: "").withNotified(getSet(params, "notified"))
+            Signature2(pageId, bodyText, title).withNotified(getSet(params, "notified"))
                 .withMaxSignatures(getLong(params, "maxSignatures"))
                 .withVisibilityLimit(getLong(params, "visibilityLimit")), signers
         )
@@ -209,6 +222,13 @@ class DigitalSignatureMacro(
         return conversionContext.entity is Page
     }
 
+    private fun isDuplicateSignatureKey(conversionContext: ConversionContext, key: String): Boolean {
+        @Suppress("UNCHECKED_CAST")
+        val seen = conversionContext.getProperty(SEEN_SIGNATURE_KEYS) as? MutableSet<String>
+            ?: mutableSetOf<String>().also { conversionContext.setProperty(SEEN_SIGNATURE_KEYS, it) }
+        return !claimSignatureKey(seen, key)
+    }
+
     private fun warning(message: String): String {
         return """
 <div class="aui-message aui-message-warning">
@@ -348,5 +368,16 @@ class DigitalSignatureMacro(
     companion object {
         private const val REST_PATH = "/rest/signature/1.0"
         private const val DISPLAY_PATH = "/display"
+        private const val SEEN_SIGNATURE_KEYS = "com.baloise.confluence.digitalsignature.seenKeys"
+        const val MIN_BODY_LENGTH = 10
+
+        /** Reject short body unless legacy store hit outside editor preview. */
+        fun isShortBodyRejected(bodyLength: Int, outputType: String, hasStoredSignature: Boolean): Boolean {
+            if (bodyLength >= MIN_BODY_LENGTH) return false
+            return outputType == ConversionContextOutputType.PREVIEW.value() || !hasStoredSignature
+        }
+
+        /** @return true if key was newly claimed, false if already seen (duplicate). */
+        fun claimSignatureKey(seen: MutableSet<String>, key: String): Boolean = seen.add(key)
     }
 }
