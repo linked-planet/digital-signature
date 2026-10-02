@@ -1,13 +1,71 @@
 package com.baloise.confluence.digitalsignature
 
+import com.atlassian.confluence.content.render.xhtml.ConversionContextOutputType
 import com.atlassian.sal.api.user.UserKey
 import com.atlassian.sal.api.user.UserProfile
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.net.URI
 
 internal class DigitalSignatureMacroTest {
     private val signature = Signature2(1, "test", "title")
+
+    @Test
+    fun longBodyAlwaysAllowed() {
+        assertFalse(
+            DigitalSignatureMacro.isShortBodyRejected(
+                DigitalSignatureMacro.MIN_BODY_LENGTH + 1,
+                ConversionContextOutputType.PREVIEW.value(),
+                hasStoredSignature = false
+            )
+        )
+    }
+
+    @Test
+    fun shortBodyRejectedWhenNewOnDisplay() {
+        assertTrue(
+            DigitalSignatureMacro.isShortBodyRejected(
+                0,
+                ConversionContextOutputType.DISPLAY.value(),
+                hasStoredSignature = false
+            )
+        )
+    }
+
+    @Test
+    fun shortBodyAllowedWhenLegacyOnDisplay() {
+        assertFalse(
+            DigitalSignatureMacro.isShortBodyRejected(
+                0,
+                ConversionContextOutputType.DISPLAY.value(),
+                hasStoredSignature = true
+            )
+        )
+    }
+
+    @Test
+    fun shortBodyRejectedInPreviewEvenIfLegacy() {
+        assertTrue(
+            DigitalSignatureMacro.isShortBodyRejected(
+                0,
+                ConversionContextOutputType.PREVIEW.value(),
+                hasStoredSignature = true
+            )
+        )
+    }
+
+    @Test
+    fun shortBodyAllowedWhenLegacyOnPdf() {
+        assertFalse(
+            DigitalSignatureMacro.isShortBodyRejected(
+                DigitalSignatureMacro.MIN_BODY_LENGTH,
+                ConversionContextOutputType.PDF.value(),
+                hasStoredSignature = true
+            )
+        )
+    }
 
     @Test
     fun mailtoLong(): Unit {

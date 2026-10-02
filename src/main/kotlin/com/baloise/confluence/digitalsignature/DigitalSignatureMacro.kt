@@ -5,6 +5,7 @@ import com.atlassian.confluence.api.model.content.ContentType
 import com.atlassian.confluence.api.model.content.id.ContentId
 import com.atlassian.confluence.api.service.content.ContentService
 import com.atlassian.confluence.content.render.xhtml.ConversionContext
+import com.atlassian.confluence.content.render.xhtml.ConversionContextOutputType
 import com.atlassian.confluence.core.ContentEntityObject
 import com.atlassian.confluence.core.ContextPathHolder
 import com.atlassian.confluence.core.DefaultSaveContext
@@ -45,6 +46,18 @@ class DigitalSignatureMacro(
 
     override fun execute(params: Map<String, String>, body: String?, conversionContext: ConversionContext): String {
         val bodyText = body ?: ""
+        val title = params["title"] ?: ""
+        val entity = conversionContext.entity
+        val pageId = entity!!.latestVersionId
+        if (isShortBodyRejected(
+                bodyText.length,
+                conversionContext.outputType,
+                signatureStore.get(Signature2(pageId, bodyText, title).key) != null
+            )
+        ) {
+            return warning(i18nResolver.getText("com.baloise.confluence.digital-signature.signature.macro.warning.bodyToShort"))
+        }
+
         val userGroups = getSet(params, "signerGroups")
         val petitionMode: Boolean = Signature2.isPetitionMode(userGroups)
         val signers = if (petitionMode) setOf("*") else contextHelper.union(
@@ -54,9 +67,8 @@ class DigitalSignatureMacro(
                 ), conversionContext
             )
         )
-        val entity = conversionContext.entity
         val signature = sync(
-            Signature2(entity!!.latestVersionId, bodyText, params["title"] ?: "").withNotified(getSet(params, "notified"))
+            Signature2(pageId, bodyText, title).withNotified(getSet(params, "notified"))
                 .withMaxSignatures(getLong(params, "maxSignatures"))
                 .withVisibilityLimit(getLong(params, "visibilityLimit")), signers
         )
@@ -345,5 +357,12 @@ class DigitalSignatureMacro(
     companion object {
         private const val REST_PATH = "/rest/signature/1.0"
         private const val DISPLAY_PATH = "/display"
+        const val MIN_BODY_LENGTH = 10
+
+        /** Reject short body unless legacy store hit outside editor preview. */
+        fun isShortBodyRejected(bodyLength: Int, outputType: String, hasStoredSignature: Boolean): Boolean {
+            if (bodyLength > MIN_BODY_LENGTH) return false
+            return outputType == ConversionContextOutputType.PREVIEW.value() || !hasStoredSignature
+        }
     }
 }
