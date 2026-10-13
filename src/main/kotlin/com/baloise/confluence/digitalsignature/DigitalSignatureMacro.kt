@@ -226,7 +226,7 @@ class DigitalSignatureMacro(
         @Suppress("UNCHECKED_CAST")
         val seen = conversionContext.getProperty(SEEN_SIGNATURE_KEYS) as? MutableSet<String>
             ?: mutableSetOf<String>().also { conversionContext.setProperty(SEEN_SIGNATURE_KEYS, it) }
-        return !claimSignatureKey(seen, key)
+        return !seen.add(key)
     }
 
     private fun warning(message: String): String {
@@ -376,8 +376,5 @@ class DigitalSignatureMacro(
             if (bodyLength >= MIN_BODY_LENGTH) return false
             return outputType == ConversionContextOutputType.PREVIEW.value() || !hasStoredSignature
         }
-
-        /** @return true if key was newly claimed, false if already seen (duplicate). */
-        fun claimSignatureKey(seen: MutableSet<String>, key: String): Boolean = seen.add(key)
     }
 }

@@ -107,7 +107,7 @@ internal class BandanaToAoUpgradeTaskTest {
     }
 
     @Test
-    fun doUpgrade_migratesOldAndCurrentSignaturesWithStringNotify() {
+    fun `doUpgrade migrates old and current signatures with string notify`() {
         val old = Signature2(1, "old-body", "old-title")
         val current = Signature2(1, "new-body", "new-title").withNotified(setOf("user"))
         val oldJson = old.serialize().replace("\"notify\":[]", "\"notify\":\"user\"")

@@ -13,7 +13,7 @@ internal class DigitalSignatureMacroTest {
     private val signature = Signature2(1, "test", "title")
 
     @Test
-    fun longBodyAlwaysAllowed() {
+    fun `long body is always allowed`() {
         assertFalse(
             DigitalSignatureMacro.isShortBodyRejected(
                 DigitalSignatureMacro.MIN_BODY_LENGTH + 1,
@@ -24,7 +24,7 @@ internal class DigitalSignatureMacroTest {
     }
 
     @Test
-    fun shortBodyRejectedWhenNewOnDisplay() {
+    fun `short body is rejected when new on display`() {
         assertTrue(
             DigitalSignatureMacro.isShortBodyRejected(
                 0,
@@ -35,7 +35,7 @@ internal class DigitalSignatureMacroTest {
     }
 
     @Test
-    fun shortBodyAllowedWhenLegacyOnDisplay() {
+    fun `short body is allowed when legacy on display`() {
         assertFalse(
             DigitalSignatureMacro.isShortBodyRejected(
                 0,
@@ -46,7 +46,7 @@ internal class DigitalSignatureMacroTest {
     }
 
     @Test
-    fun shortBodyRejectedInPreviewEvenIfLegacy() {
+    fun `short body is rejected in preview even if legacy`() {
         assertTrue(
             DigitalSignatureMacro.isShortBodyRejected(
                 0,
@@ -57,7 +57,7 @@ internal class DigitalSignatureMacroTest {
     }
 
     @Test
-    fun shortBodyAllowedWhenLegacyOnPdf() {
+    fun `short body is allowed when legacy on pdf`() {
         assertFalse(
             DigitalSignatureMacro.isShortBodyRejected(
                 DigitalSignatureMacro.MIN_BODY_LENGTH,
@@ -65,14 +65,6 @@ internal class DigitalSignatureMacroTest {
                 hasStoredSignature = true
             )
         )
-    }
-
-    @Test
-    fun claimSignatureKeyDetectsDuplicates() {
-        val seen = mutableSetOf<String>()
-        assertTrue(DigitalSignatureMacro.claimSignatureKey(seen, "signature.abc"))
-        assertFalse(DigitalSignatureMacro.claimSignatureKey(seen, "signature.abc"))
-        assertTrue(DigitalSignatureMacro.claimSignatureKey(seen, "signature.def"))
     }
 
     @Test
