@@ -2,7 +2,10 @@ package com.baloise.confluence.digitalsignature
 
 import com.baloise.confluence.digitalsignature.Signature2.Companion.deserialize
 import com.baloise.confluence.digitalsignature.Signature2.Companion.fromBandana
-import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Assertions.assertAll
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.function.Executable
 import java.io.IOException
@@ -14,6 +17,16 @@ import java.util.*
 
 internal class SignatureSerialisationTest {
     @Test
+    fun `deserialize discards string notify and preserves other fields`() {
+        val restored = deserialize(SIG_JSON.replace("\"notify\":[\"notify1\"]", "\"notify\":\"notify1\""))!!
+        val expected = deserialize(SIG_JSON)!!.apply { notify = emptySet() }
+
+        assertEquals(expected.serialize(), restored.serialize())
+        assertTrue(restored.serialize().contains("\"notify\":[]"))
+        assertEquals(setOf("notify1"), deserialize(SIG_JSON)!!.notify)
+    }
+
+    @Test
     @Throws(IOException::class, ClassNotFoundException::class)
     fun deserialize() {
         val signatureKey = "signature.a077cdcc5bfcf275fe447ae2c609c1c361331b4e90cb85909582e0d824cbc5b3"
@@ -24,21 +37,21 @@ internal class SignatureSerialisationTest {
             keys.add(signatureKey)
             signature = fromBandana(signatureText.readObject() as Signature).first
         }
-        Assertions.assertNotNull(signature)
-        Assertions.assertAll(
-            Executable { Assertions.assertEquals(signatureKey, signature!!.key) },
-            Executable { Assertions.assertEquals("[missing1, missing2]", signature!!.missingSignatures.toString()) },
-            Executable { Assertions.assertEquals(1, signature!!.signatures.size) },
-            Executable { Assertions.assertTrue(signature!!.signatures.containsKey("signed1")) },
+        assertNotNull(signature)
+        assertAll(
+            Executable { assertEquals(signatureKey, signature!!.key) },
+            Executable { assertEquals("[missing1, missing2]", signature!!.missingSignatures.toString()) },
+            Executable { assertEquals(1, signature!!.signatures.size) },
+            Executable { assertTrue(signature!!.signatures.containsKey("signed1")) },
             Executable {
-                Assertions.assertEquals(
+                assertEquals(
                     9999, signature!!.signatures["signed1"]!!
                         .time
                 )
             },  // assert we can still read the old gson serialization
 
             Executable {
-                Assertions.assertEquals(
+                assertEquals(
                     signature, deserialize(
                         SIG_JSON
                     )
@@ -46,7 +59,7 @@ internal class SignatureSerialisationTest {
             },  // assert that deserialization of the serialization results in the original Signature
 
             Executable {
-                Assertions.assertEquals(
+                assertEquals(
                     signature, deserialize(
                         signature!!.serialize()
                     )
@@ -70,7 +83,7 @@ internal class SignatureSerialisationTest {
         }
         // assert the serialization we just wrote can be deserialized
         val `in` = ObjectInputStream(Files.newInputStream(path))
-        Assertions.assertEquals(signature, `in`.readObject())
+        assertEquals(signature, `in`.readObject())
     }
 
     @Test
@@ -84,7 +97,7 @@ internal class SignatureSerialisationTest {
 
         // assert the historically serialized class can still be deserialized
         val stream = ObjectInputStream(javaClass.getResourceAsStream("/signature.ser"))
-        Assertions.assertEquals(signature, stream.readObject())
+        assertEquals(signature, stream.readObject())
     }
 
     companion object {

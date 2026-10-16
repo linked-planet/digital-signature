@@ -3,6 +3,8 @@ package com.baloise.confluence.digitalsignature
 import com.baloise.confluence.digitalsignature.ao.SignatureStore
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonArray
+import com.google.gson.JsonParser
 import org.apache.commons.codec.digest.DigestUtils
 import org.apache.logging.log4j.LogManager
 import java.io.Serializable
@@ -102,7 +104,19 @@ class Signature2(var pageId: Long, var body: String, var title: String) : Serial
 
         @JvmStatic
         fun deserialize(serialization: String?): Signature2? {
-            return serialization?.let { GSON.fromJson(it, Signature2::class.java) }
+            return serialization?.let {
+                val json = JsonParser.parseString(it)
+                if (json.isJsonObject) {
+                    // in old invalid data notify is sometimes a string instead of an array
+                    // to be able to migrate the other data, we set the invalid notify string
+                    // to an empty array
+                    val notify = json.asJsonObject.get("notify")
+                    if (notify?.isJsonPrimitive == true && notify.asJsonPrimitive.isString) {
+                        json.asJsonObject.add("notify", JsonArray())
+                    }
+                }
+                GSON.fromJson(json, Signature2::class.java)
+            }
         }
 
         @JvmStatic
